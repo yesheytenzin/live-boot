@@ -18,6 +18,8 @@ status() {
     echo "enabled: legacy backup is still inside $config_dir"
   elif [[ -f $backup_conf ]]; then
     echo "disabled by live-boot: $backup_conf"
+  elif [[ -d $state_dir ]]; then
+    echo "disabled by live-boot: $state_dir"
   else
     echo "disabled: no autologin configuration"
   fi
@@ -49,7 +51,7 @@ fi
 case "$action" in
   --disable)
     mkdir -p "$state_dir"
-    chmod 700 "$state_dir"
+    chmod 711 "$state_dir"
     if [[ -f $autologin_conf ]]; then
       [[ ! -e $backup_conf ]] || { echo "live-boot: refusing to overwrite $backup_conf" >&2; exit 1; }
       mv "$autologin_conf" "$backup_conf"

@@ -167,7 +167,7 @@ sync_sddm() {
   if ! run_privileged bash -c '
     set -e
     mkdir -p "$(dirname "$2")"
-    chmod 700 "$(dirname "$2")"
+    chmod 711 "$(dirname "$2")"
     if [[ -f $1 ]]; then
       [[ ! -e $2 ]]
       mv "$1" "$2"
