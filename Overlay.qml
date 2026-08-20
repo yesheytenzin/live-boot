@@ -462,7 +462,9 @@ Item {
           Item {
             id: previewFrame
             Layout.fillWidth: true
-            Layout.preferredHeight: 190
+            Layout.minimumHeight: 270
+            Layout.preferredHeight: 270
+            Layout.maximumHeight: 270
 
             Rectangle {
               id: preview
@@ -747,7 +749,9 @@ Item {
           // Transition controls mirror the SDDM state machine.
           Rectangle {
             Layout.fillWidth: true
+            Layout.minimumHeight: 64
             Layout.preferredHeight: 64
+            Layout.maximumHeight: 64
             radius: 9
             color: Util.alpha(Color.background, 0.32)
             border.color: Util.alpha(Color.imagePicker.unselectedBorder, 0.7)
@@ -822,14 +826,16 @@ Item {
           // Compact, paired control cards keep related settings together.
           RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 184
+            Layout.minimumHeight: 250
+            Layout.preferredHeight: 250
+            Layout.maximumHeight: 250
             spacing: 8
 
             Rectangle {
               Layout.fillWidth: true; Layout.fillHeight: true; radius: 9
               color: Util.alpha(Color.background,0.32); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.7); border.width: 1
               ColumnLayout {
-                anchors.fill: parent; anchors.margins: 10; spacing: 7
+                anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 10; anchors.rightMargin: 10; spacing: 7
                 RowLayout {
                   Layout.fillWidth: true
                   Text { text: "LOGO"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
@@ -889,9 +895,9 @@ Item {
               Layout.fillWidth: true; Layout.fillHeight: true; radius: 9
               color: Util.alpha(Color.background,0.32); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.7); border.width: 1
               RowLayout {
-                anchors.fill: parent; anchors.margins: 10; spacing: 9
+                anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 10; anchors.rightMargin: 10; spacing: 9
                 ColumnLayout {
-                  Layout.fillWidth: true; Layout.fillHeight: true; spacing: 7
+                  Layout.fillWidth: true; spacing: 7
                   RowLayout {
                     Layout.fillWidth: true
                     Text { text: "PASSWORD"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
@@ -958,7 +964,7 @@ Item {
           }
 
           Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 38; radius: 9
+            Layout.fillWidth: true; Layout.minimumHeight: 38; Layout.preferredHeight: 38; Layout.maximumHeight: 38; radius: 9
             color: Util.alpha(Color.background,0.32); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.7); border.width: 1
             RowLayout {
               anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 8; spacing: 8
