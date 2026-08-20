@@ -116,8 +116,8 @@ Rectangle {
     id: passWrap
     width: {{fieldWidth}}
     height: {{fieldHeight}}
-    // Natural password row is 340x56. No scale cap: larger sizes enlarge it.
-    readonly property real s: Math.min(width / 340.0, height / 56.0)
+    // Omarchy's natural password row is 335x48. No scale cap.
+    readonly property real s: Math.min(width / 335.0, height / 48.0)
     anchors.centerIn: root.anchor === "center" ? parent : undefined
     anchors.horizontalCenter: root.anchor !== "center" && root.anchor !== "custom" ? parent.horizontalCenter : undefined
     anchors.top: root.anchor.indexOf("top") !== -1 ? parent.top : undefined
@@ -136,34 +136,34 @@ Rectangle {
     Row {
       anchors.centerIn: parent
       scale: passWrap.s
-      spacing: 12
+      spacing: 15
 
       Image {
         source: root.loginFailed ? "lock-failed.png" : "lock.png"
-        width: 28
-        height: 32
+        width: 34
+        height: 38
         fillMode: Image.PreserveAspectFit
         anchors.verticalCenter: parent.verticalCenter
       }
 
       Item {
-        width: 300
-        height: 44
+        width: 286
+        height: 48
 
           Image {
             id: entry
             source: root.loginFailed ? "entry-failed.png" : "entry.png"
             anchors.centerIn: parent
             width: parent.width
-            height: 44
+            height: 48
             fillMode: Image.PreserveAspectCrop
           }
 
           Row {
             anchors.left: parent.left
-            anchors.leftMargin: 16
+            anchors.leftMargin: 20
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
+            spacing: 5
             Repeater {
               model: Math.min(password.text.length, 21)
               Image { source: "bullet.png"; width: 7; height: 7 }
@@ -173,13 +173,13 @@ Rectangle {
           TextInput {
             id: password
             anchors.fill: parent
-            anchors.leftMargin: 16
-            anchors.rightMargin: 16
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
             verticalAlignment: TextInput.AlignVCenter
             echoMode: TextInput.Password
             font.family: "JetBrainsMono Nerd Font"
-            font.pixelSize: 20
-            font.letterSpacing: 4
+            font.pixelSize: 24
+            font.letterSpacing: 5
             passwordCharacter: "\u2022"
             color: "transparent"
             selectionColor: "transparent"

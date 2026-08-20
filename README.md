@@ -25,6 +25,7 @@ Next reboot shows looping video behind the password field. Video is revealed onl
 - **Audio toggle**: auto-enables when video has an audio stream; shows “No audio track” otherwise. Preview respects toggle via `AudioOutput { muted: !audioEnabled }`
 - Independent logo/password dragging and resizing (password up to 1600×320, logo up to 1200×400)
 - Resolution-aware WYSIWYG preview, including a 640×480 SDDM test-mode preset
+- Default size/position actions reproduce Omarchy's stock responsive logo and fixed 335×48 password row
 - Live preview in overlay: `video → password` transition WYSIWYG
 - Keeps `background.jpg` poster as fallback if `QtMultimedia` missing
 - Restores stock SDDM on `--uninstall` or `--clear`

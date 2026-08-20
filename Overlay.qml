@@ -22,12 +22,12 @@ Item {
   property int selectedIndex: 0
   property string filterText: ""
   property bool videoReady: false
-  property var pos: ({ anchor: "center", offsetX: 0, offsetY: 0 })
-  property var fieldSize: ({ width: 340, height: 56 })
+  property var pos: ({ anchor: "custom", offsetX: 0, offsetY: 114 })
+  property var fieldSize: ({ width: 335, height: 48 })
   property bool audioEnabled: false
   property bool showLogo: true
-  property var logoPos: ({ offsetX: 0, offsetY: -70 })
-  property var logoSize: ({ width: 260, height: 61 })
+  property var logoPos: ({ offsetX: 0, offsetY: -44 })
+  property var logoSize: ({ width: 800, height: 188 })
   property var previewRes: ({ width: 1920, height: 1080 })
   property string themeDir: "/usr/share/sddm/themes/omarchy"
   property bool previewHasAudio: false
@@ -78,15 +78,15 @@ Item {
     }
     // load pos/size/audio/logo/res from args or file
     if (args.pos && typeof args.pos === "object") pos = args.pos
-    if (args.fieldSize && typeof args.fieldSize === "object") fieldSize = { width: Math.max(200,Math.min(1600, args.fieldSize.width||340)), height: Math.max(40,Math.min(320, args.fieldSize.height||56)) }
-    else if (args.size && typeof args.size === "object") fieldSize = { width: Math.max(200,Math.min(1600, args.size.width||340)), height: Math.max(40,Math.min(320, args.size.height||56)) }
+    if (args.fieldSize && typeof args.fieldSize === "object") fieldSize = { width: Math.max(200,Math.min(1600, args.fieldSize.width||335)), height: Math.max(40,Math.min(320, args.fieldSize.height||48)) }
+    else if (args.size && typeof args.size === "object") fieldSize = { width: Math.max(200,Math.min(1600, args.size.width||335)), height: Math.max(40,Math.min(320, args.size.height||48)) }
     else if (!args.pos) loadPos() // loadPos also loads fieldSize
     else if (typeof args.audioEnabled !== "boolean") loadPos()
     if (typeof args.audioEnabled === "boolean") audioEnabled = args.audioEnabled
     else if (typeof args.audio === "boolean") audioEnabled = args.audio
     if (typeof args.showLogo === "boolean") showLogo = args.showLogo
     if (args.logoPos && typeof args.logoPos === "object") logoPos = { offsetX: parseInt(args.logoPos.offsetX)||0, offsetY: parseInt(args.logoPos.offsetY)||0 }
-    if (args.logoSize && typeof args.logoSize === "object") logoSize = { width: Math.max(80,Math.min(1200,args.logoSize.width||260)), height: Math.max(20,Math.min(400,args.logoSize.height||61)) }
+    if (args.logoSize && typeof args.logoSize === "object") logoSize = { width: Math.max(80,Math.min(1200,args.logoSize.width||800)), height: Math.max(20,Math.min(400,args.logoSize.height||188)) }
     if (args.previewRes && typeof args.previewRes === "object") previewRes = { width: parseInt(args.previewRes.width)||1920, height: parseInt(args.previewRes.height)||1080 }
     if (typeof args.themeDir === "string" && args.themeDir) themeDir = String(args.themeDir)
     opened = true
@@ -116,12 +116,12 @@ Item {
       try {
         var cfg = JSON.parse(String(loadPosOut.text || "{}"))
         if (cfg.pos) root.pos = cfg.pos
-        if (cfg.fieldSize && typeof cfg.fieldSize === "object") root.fieldSize = { width: Math.max(200,Math.min(1600, cfg.fieldSize.width||340)), height: Math.max(40,Math.min(320, cfg.fieldSize.height||56)) }
-        else if (cfg.size && typeof cfg.size === "object") root.fieldSize = { width: Math.max(200,Math.min(1600, cfg.size.width||340)), height: Math.max(40,Math.min(320, cfg.size.height||56)) }
+        if (cfg.fieldSize && typeof cfg.fieldSize === "object") root.fieldSize = { width: Math.max(200,Math.min(1600, cfg.fieldSize.width||335)), height: Math.max(40,Math.min(320, cfg.fieldSize.height||48)) }
+        else if (cfg.size && typeof cfg.size === "object") root.fieldSize = { width: Math.max(200,Math.min(1600, cfg.size.width||335)), height: Math.max(40,Math.min(320, cfg.size.height||48)) }
         if (typeof cfg.audioEnabled === "boolean") root.audioEnabled = cfg.audioEnabled
         if (typeof cfg.showLogo === "boolean") root.showLogo = cfg.showLogo
         if (cfg.logoPos && typeof cfg.logoPos === "object") root.logoPos = { offsetX: parseInt(cfg.logoPos.offsetX)||0, offsetY: parseInt(cfg.logoPos.offsetY)||0 }
-        if (cfg.logoSize && typeof cfg.logoSize === "object") root.logoSize = { width: Math.max(80,Math.min(1200,cfg.logoSize.width||260)), height: Math.max(20,Math.min(400,cfg.logoSize.height||61)) }
+        if (cfg.logoSize && typeof cfg.logoSize === "object") root.logoSize = { width: Math.max(80,Math.min(1200,cfg.logoSize.width||800)), height: Math.max(20,Math.min(400,cfg.logoSize.height||188)) }
         if (cfg.previewRes && typeof cfg.previewRes === "object") {
           root.previewRes = { width: parseInt(cfg.previewRes.width)||1920, height: parseInt(cfg.previewRes.height)||1080 }
         }
@@ -183,15 +183,16 @@ Item {
   function updateShowLogo(v) { showLogo = !!v }
   function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy } }
   function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) } }
+  function defaultLogoWidth() { return Math.min(800, previewRes.width * 0.8) }
+  function defaultLogoHeight() { return Math.round(defaultLogoWidth() * 188 / 800) }
+  function defaultPasswordY() { return Math.round(defaultLogoHeight() / 2 + 20) }
   function resetDefaultPositions() {
-    updateLogoPos(0, -70)
-    updatePos("center", 0, 0)
+    updateLogoPos(0, -44)
+    updatePos("custom", 0, defaultPasswordY())
   }
-  function defaultSizeScale() { return previewRes.height / 480.0 }
   function resetDefaultSizes() {
-    var s = defaultSizeScale()
-    updateLogoSize(Math.round(260 * s), Math.round(61 * s))
-    updateFieldSize(Math.round(340 * s), Math.round(56 * s))
+    updateLogoSize(defaultLogoWidth(), defaultLogoHeight())
+    updateFieldSize(335, 48)
   }
   function updatePreviewRes(w, h) {
     previewRes = { width: Math.max(640, Math.min(7680, w)), height: Math.max(480, Math.min(4320, h)) }
@@ -517,8 +518,8 @@ Item {
               id: passWrap
               width: root.fieldSize.width * preview.displayScale
               height: root.fieldSize.height * preview.displayScale
-              // Natural password row is 340x56; larger boxes visibly enlarge it.
-              readonly property real s: Math.min(root.fieldSize.width / 340.0, root.fieldSize.height / 56.0) * preview.displayScale
+              // Omarchy's natural password row is 335x48.
+              readonly property real s: Math.min(root.fieldSize.width / 335.0, root.fieldSize.height / 48.0) * preview.displayScale
               // anchor logic — custom uses free x/y, others use anchors (x/y ignored)
               anchors.centerIn: root.pos.anchor === "center" ? parent : undefined
               anchors.horizontalCenter: root.pos.anchor !== "center" && root.pos.anchor !== "custom" ? parent.horizontalCenter : undefined
@@ -539,15 +540,15 @@ Item {
               Row {
                 anchors.centerIn: parent
                 scale: passWrap.s
-                spacing: 12
+                spacing: 15
                 Image {
                   source: root.fileUrl(root.themeDir + "/lock.png")
-                  width: 28; height: 32; fillMode: Image.PreserveAspectFit
+                  width: 34; height: 38; fillMode: Image.PreserveAspectFit
                   asynchronous: true
                 }
                 Item {
-                  width: 300
-                  height: 44
+                  width: 286
+                  height: 48
                   Image {
                     source: root.fileUrl(root.themeDir + "/entry.png")
                     anchors.fill: parent
@@ -556,9 +557,9 @@ Item {
                   }
                   Row {
                     anchors.left: parent.left
-                    anchors.leftMargin: 16
+                    anchors.leftMargin: 20
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 4
+                    spacing: 5
                     Repeater {
                       model: 8
                       delegate: Image {
@@ -684,7 +685,7 @@ Item {
                 width: 60; height: 24; radius: 6
                 color: Util.alpha(Color.background,0.6); border.color: Color.imagePicker.unselectedBorder; border.width: 1
                 Text { anchors.centerIn: parent; text: "Default"; color: Color.foreground; font.pixelSize: Style.font.caption }
-                MouseArea { anchors.fill: parent; onClicked: root.updateLogoPos(0,-70) }
+                MouseArea { anchors.fill: parent; onClicked: root.updateLogoPos(0,-44) }
               }
               Rectangle {
                 width: 52; height: 26; radius: 13
@@ -779,7 +780,7 @@ Item {
                 }
               }
               Text {
-                text: "Defaults for " + previewRes.width + "×" + previewRes.height + ": logo " + Math.round(260*root.defaultSizeScale()) + "×" + Math.round(61*root.defaultSizeScale()) + " · password " + Math.round(340*root.defaultSizeScale()) + "×" + Math.round(56*root.defaultSizeScale())
+                text: "Omarchy defaults: logo " + root.defaultLogoWidth() + "×" + root.defaultLogoHeight() + " at 0,-44 · password 335×48 at 0," + root.defaultPasswordY()
                 color: Color.foreground; opacity: 0.42; font.pixelSize: 9; wrapMode: Text.WordWrap; Layout.fillWidth: true
               }
             }
@@ -799,7 +800,7 @@ Item {
                 width: 60; height: 24; radius: 7
                 color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
                 Text { anchors.centerIn: parent; text: "Default"; color: Color.foreground; font.pixelSize: Style.font.caption }
-                MouseArea { anchors.fill: parent; onClicked: root.updatePos("center",0,0) }
+                MouseArea { anchors.fill: parent; onClicked: root.updatePos("custom",0,root.defaultPasswordY()) }
               }
             }
 

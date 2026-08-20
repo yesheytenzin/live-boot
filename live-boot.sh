@@ -45,7 +45,7 @@ has_audio_track() {
 
 ensure_config() {
   if [[ ! -f $config_path ]]; then
-    printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false,"fieldSize":{"width":340,"height":56},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-70},"logoSize":{"width":260,"height":61},"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
+    printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
   fi
   # migrate legacy video/poster files into json if json empty
   local vid="" post=""
@@ -64,7 +64,7 @@ ensure_config() {
     printf '{"video":%s,"poster":%s,"pos":%s,"audioEnabled":%s}\n' "$(printf '%s' "$vid" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$(printf '%s' "$post" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$pos_json" "$audio_json" >"$config_path"
   fi
   # ensure keys exist
-  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); pos=d.setdefault('pos', {'anchor':'center','offsetX':0,'offsetY':0}); d.setdefault('fieldSize', {'width':340,'height':56}); d.setdefault('showLogo', True); d.setdefault('logoPos', {'offsetX':pos.get('offsetX',0),'offsetY':pos.get('offsetY',0)-70}); d.setdefault('logoSize', {'width':260,'height':61}); d.setdefault('previewRes', {'width':1920,'height':1080}); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
+  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); res=d.setdefault('previewRes', {'width':1920,'height':1080}); lw=min(800, int(res.get('width',1920))*0.8); lh=round(lw*188/800); d.setdefault('pos', {'anchor':'custom','offsetX':0,'offsetY':round(lh/2+20)}); d.setdefault('fieldSize', {'width':335,'height':48}); d.setdefault('showLogo', True); d.setdefault('logoPos', {'offsetX':0,'offsetY':-44}); d.setdefault('logoSize', {'width':round(lw),'height':lh}); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
 }
 
 load_pos() {
@@ -81,11 +81,11 @@ sync_sddm() {
   if [[ $audioEnabled == "true" ]]; then audioMuted="false"; else audioMuted="true"; fi
   showLogo=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('showLogo', True) else 'false')" 2>/dev/null || echo "true")
   logoX=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoPos',{}).get('offsetX',0))" 2>/dev/null || echo "0")
-  logoY=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoPos',{}).get('offsetY',-70))" 2>/dev/null || echo "-70")
-  logoW=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoSize',{}).get('width',260))" 2>/dev/null || echo "260")
-  logoH=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoSize',{}).get('height',61))" 2>/dev/null || echo "61")
-  fieldW=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('width',340))" 2>/dev/null || echo "340")
-  fieldH=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('height',56))" 2>/dev/null || echo "56")
+  logoY=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoPos',{}).get('offsetY',-44))" 2>/dev/null || echo "-44")
+  logoW=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoSize',{}).get('width',800))" 2>/dev/null || echo "800")
+  logoH=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoSize',{}).get('height',188))" 2>/dev/null || echo "188")
+  fieldW=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('width',335))" 2>/dev/null || echo "335")
+  fieldH=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('height',48))" 2>/dev/null || echo "48")
   read -r anchor ox oy <<<"$(load_pos)"
 
   if [[ -z $video || ! -f $video ]]; then
@@ -142,7 +142,7 @@ resume_live_boot() {
 }
 
 clear_boot() {
-  printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false,"fieldSize":{"width":340,"height":56},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-70},"logoSize":{"width":260,"height":61},"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
+  printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
   rm -f "$video_state" "$poster_state" "$expected_state"
   sync_sddm
 }
@@ -200,11 +200,11 @@ theme_name=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || 
 theme_dir="$HOME/.local/state/omarchy/current/theme/backgrounds"
 user_dir="$HOME/.config/omarchy/backgrounds/$theme_name"
 current_video=$(python3 -c "import json; print(json.load(open('$config_path')).get('video',''))" 2>/dev/null || echo "")
-current_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('pos',{'anchor':'center','offsetX':0,'offsetY':0})))" 2>/dev/null || echo '{"anchor":"center","offsetX":0,"offsetY":0}')
-current_size_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('fieldSize',{'width':340,'height':56})))" 2>/dev/null || echo '{"width":340,"height":56}')
+current_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('pos',{'anchor':'custom','offsetX':0,'offsetY':114})))" 2>/dev/null || echo '{"anchor":"custom","offsetX":0,"offsetY":114}')
+current_size_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('fieldSize',{'width':335,'height':48})))" 2>/dev/null || echo '{"width":335,"height":48}')
 current_show_logo=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('showLogo', True) else 'false')" 2>/dev/null || echo "true")
-current_logo_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoPos',{'offsetX':0,'offsetY':-70})))" 2>/dev/null || echo '{"offsetX":0,"offsetY":-70}')
-current_logo_size_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoSize',{'width':260,'height':61})))" 2>/dev/null || echo '{"width":260,"height":61}')
+current_logo_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoPos',{'offsetX':0,'offsetY':-44})))" 2>/dev/null || echo '{"offsetX":0,"offsetY":-44}')
+current_logo_size_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoSize',{'width':800,'height':188})))" 2>/dev/null || echo '{"width":800,"height":188}')
 current_res_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('previewRes',{'width':1920,'height':1080})))" 2>/dev/null || echo '{"width":1920,"height":1080}')
 current_audio=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
 
