@@ -89,16 +89,15 @@ Item {
   Process {
     id: syncProc
     command: [root.script, "--sync-sddm"]
+    onExited: function(exitCode, exitStatus) {
+      var message = exitCode === 0 ? "Live Boot applied to SDDM" : "Live Boot was not applied; authorization was cancelled or failed"
+      Quickshell.execDetached(["omarchy-notification-send", message, "-t", "4000"])
+    }
   }
 
   Process {
     id: wireMenuProc
     command: [root.script, "--wire-menu"]
-  }
-
-  Process {
-    id: resumeProc
-    command: [root.script, "--resume"]
   }
 
   Timer {
@@ -229,11 +228,7 @@ Item {
     command: [root.script, "--clear"]
   }
 
-  Component.onCompleted: {
-    wireMenuProc.running = true
-    // resume after a tick so shell is ready
-    Qt.callLater(function() { resumeProc.running = true })
-  }
+  Component.onCompleted: wireMenuProc.running = true
 
   Component.onDestruction: Quickshell.execDetached([root.script, "--unwire-menu"])
 }

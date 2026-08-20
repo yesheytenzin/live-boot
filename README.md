@@ -15,7 +15,7 @@ Fork of the `live-wallpaper` pattern, but for boot only (`live-boot` id).
 2. Open **Style → Boot Background** (or run `~/.config/omarchy/plugins/live-boot/live-boot.sh`).
 3. Pick a video, choose the preview resolution, drag the logo and password independently, resize the password field, then **Apply to Boot**.
 
-Next reboot either loops video behind the login or plays it once before revealing the logo and password, depending on the selected reveal mode. If sound is enabled, audio plays at SDDM when the greeter has a PipeWire/Pulse session. Applying a boot theme automatically preserves and disables SDDM autologin so the greeter is actually shown.
+Next reboot either loops video behind the login or plays it once before revealing the logo and password, depending on the selected reveal mode. If sound is enabled, audio plays at SDDM when the greeter has a PipeWire/Pulse session. Applying a boot theme automatically preserves and disables SDDM autologin so the greeter is actually shown. Apply requests one administrator authorization immediately; it never retries after desktop login.
 
 ## Features
 

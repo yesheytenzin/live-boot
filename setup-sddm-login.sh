@@ -40,6 +40,7 @@ if [[ $EUID -ne 0 ]]; then
     status
     exit 0
   fi
+  if [[ -t 0 && -t 1 ]]; then exec sudo "$script_path" "$action"; fi
   exec pkexec "$script_path" "$action"
 fi
 

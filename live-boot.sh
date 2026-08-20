@@ -16,6 +16,13 @@ readonly sddm_main_backup="$sddm_theme_dir/Main.qml.live-boot.bak"
 readonly login_setup="$HOME/.config/omarchy/plugins/$plugin_id/setup-sddm-login.sh"
 
 mkdir -p "$state_dir" "$cache_dir"
+run_privileged() {
+  if [[ -t 0 && -t 1 ]]; then
+    sudo "$@"
+  else
+    pkexec "$@"
+  fi
+}
 
 is_video() {
   local ext="${1##*.}"
@@ -117,7 +124,7 @@ sync_sddm() {
   if [[ -z $video || ! -f $video ]]; then
     # clear SDDM video -> restore theme
     if [[ -f $sddm_main_backup ]]; then
-      pkexec bash -c "rm -f '$sddm_video' '$sddm_poster'; cp '$sddm_main_backup' '$sddm_main'" 2>/dev/null || sudo bash -c "rm -f '$sddm_video' '$sddm_poster'; cp '$sddm_main_backup' '$sddm_main'" 2>/dev/null || true
+      run_privileged bash -c "rm -f '$sddm_video' '$sddm_poster'; cp '$sddm_main_backup' '$sddm_main'" || return 1
     fi
     return 0
   fi
@@ -149,16 +156,30 @@ sync_sddm() {
     cp -f "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "/usr/share/omarchy/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "$sddm_main" "$tmp_main"
   fi
 
-  # backup once
-  if [[ ! -f $sddm_main_backup && -f $sddm_main ]]; then
-    pkexec bash -c "cp '$sddm_main' '$sddm_main_backup'" 2>/dev/null || sudo bash -c "cp '$sddm_main' '$sddm_main_backup'" 2>/dev/null || cp "$sddm_main" "$sddm_main_backup" 2>/dev/null || true
+  # Install the theme and disable autologin under one explicit authorization.
+  if ! run_privileged bash -c '
+    set -e
+    if [[ -f $1 ]]; then
+      [[ ! -e $2 && ! -e $3 ]]
+      mv "$1" "$2"
+    fi
+    if [[ ! -f $5 && -f $4 ]]; then cp "$4" "$5"; fi
+    cp "$6" "$7"
+    cp "$8" "$9"
+    cp "${10}" "${11}"
+    chmod 644 "$7" "$9" "${11}"
+  ' live-boot \
+    /etc/sddm.conf.d/autologin.conf \
+    /etc/sddm.conf.d/autologin.conf.live-boot-disabled \
+    /etc/sddm.conf.d/autologin.conf.disabled \
+    "$sddm_main" "$sddm_main_backup" \
+    "$tmp_video_dest" "$sddm_video" \
+    "$tmp_poster_dest" "$sddm_poster" \
+    "$tmp_main" "$sddm_main"; then
+    rm -f "$tmp_main" "$tmp_poster_dest" "$tmp_video_dest"
+    echo "live-boot: SDDM installation failed" >&2
+    return 1
   fi
-
-  pkexec bash -c "cp '$tmp_video_dest' '$sddm_video'; cp '$tmp_poster_dest' '$sddm_poster'; cp '$tmp_main' '$sddm_main'; chmod 644 '$sddm_video' '$sddm_poster' '$sddm_main'" 2>/dev/null \
-    || sudo bash -c "cp '$tmp_video_dest' '$sddm_video'; cp '$tmp_poster_dest' '$sddm_poster'; cp '$tmp_main' '$sddm_main'; chmod 644 '$sddm_video' '$sddm_poster' '$sddm_main'" 2>/dev/null \
-    || { cp "$tmp_video_dest" "$sddm_video" 2>/dev/null; cp "$tmp_poster_dest" "$sddm_poster" 2>/dev/null; cp "$tmp_main" "$sddm_main" 2>/dev/null; }
-
-  [[ ! -x $login_setup ]] || "$login_setup" --disable || echo "live-boot: could not disable SDDM autologin" >&2
 
   rm -f "$tmp_main" "$tmp_poster_dest" "$tmp_video_dest"
   printf '%s\n' "$poster" >"$expected_state"
@@ -206,7 +227,7 @@ uninstall_plugin_state() {
   clear_boot
   # restore SDDM if backup exists
   if [[ -f $sddm_main_backup ]]; then
-    pkexec bash -c "cp '$sddm_main_backup' '$sddm_main'; rm -f '$sddm_video' '$sddm_poster' '$sddm_main_backup'" 2>/dev/null || sudo bash -c "cp '$sddm_main_backup' '$sddm_main'; rm -f '$sddm_video' '$sddm_poster' '$sddm_main_backup'" 2>/dev/null || true
+    run_privileged bash -c "cp '$sddm_main_backup' '$sddm_main'; rm -f '$sddm_video' '$sddm_poster' '$sddm_main_backup'" || return 1
   fi
   rm -rf "$state_dir" "$cache_dir"
 }
