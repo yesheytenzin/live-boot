@@ -587,6 +587,7 @@ Item {
             // Logo has its own position and drag target.
             Item {
               id: logoWrap
+              visible: root.showLogo
               width: root.logoSize.width * preview.displayScale
               height: root.logoSize.height * preview.displayScale
               x: preview.width/2 - width/2 + root.logoPos.offsetX * preview.displayScale
