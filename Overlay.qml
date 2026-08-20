@@ -516,23 +516,7 @@ Item {
               Rectangle { height: 1; width: parent.width; y: parent.height/2; color: Util.alpha(Color.accent, root.pos.anchor==="center" || (root.pos.anchor==="custom" && Math.abs(root.pos.offsetX)<8 && Math.abs(root.pos.offsetY)<8) ? 0.18 : 0); visible: root.pos.anchor==="center" || root.pos.anchor==="custom" }
             }
 
-            MouseArea {
-              anchors.fill: parent
-              z: -1
-              enabled: root.pos.anchor==="custom"
-              cursorShape: Qt.CrossCursor
-              onClicked: function(mouse) {
-                // place password center exactly where clicked
-                root.updatePos("custom", Math.round(mouse.x - preview.width/2), Math.round(mouse.y - preview.height/2))
-              }
-              onPositionChanged: function(mouse) {
-                if (mouse.buttons & Qt.LeftButton) {
-                  root.updatePos("custom", Math.round(mouse.x - preview.width/2), Math.round(mouse.y - preview.height/2))
-                }
-              }
-            }
-
-            // hint when custom
+            // hint when custom - drag only
             Rectangle {
               visible: root.pos.anchor==="custom"
               anchors.bottom: parent.bottom
@@ -542,7 +526,7 @@ Item {
               color: Util.alpha(Color.background,0.72)
               border.color: Util.alpha(Color.accent,0.45)
               border.width: 1
-              Text { id: hintText; anchors.centerIn: parent; text: "Click or drag in preview to place"; color: Color.foreground; font.pixelSize: 10; opacity: 0.85 }
+              Text { id: hintText; anchors.centerIn: parent; text: "Drag the password box to place"; color: Color.foreground; font.pixelSize: 10; opacity: 0.85 }
             }
           }
 
@@ -624,7 +608,7 @@ Item {
               ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 4
-                Text { text: "Click a corner to snap, or enable free placement:"; color: Color.foreground; opacity: 0.55; font.pixelSize: Style.font.caption; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Text { text: "Snap to a corner, or drag freely:"; color: Color.foreground; opacity: 0.55; font.pixelSize: Style.font.caption; wrapMode: Text.WordWrap; Layout.fillWidth: true }
 
                 Rectangle {
                   Layout.fillWidth: true; height: 32; radius: Style.cornerRadius
@@ -635,14 +619,14 @@ Item {
                     anchors.fill: parent
                     anchors.leftMargin: 10; anchors.rightMargin: 10
                     spacing: 8
-                    Text { text: root.pos.anchor==="custom" ? "●  Free drag enabled" : "○  Free drag"; color: root.pos.anchor==="custom" ? Color.background : Color.foreground; font.pixelSize: Style.font.bodySmall; font.weight: Font.DemiBold }
+                    Text { text: root.pos.anchor==="custom" ? "●  Drag enabled" : "○  Drag"; color: root.pos.anchor==="custom" ? Color.background : Color.foreground; font.pixelSize: Style.font.bodySmall; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
-                    Text { text: root.pos.anchor==="custom" ? "click preview to place" : "click to enable"; color: root.pos.anchor==="custom" ? Util.alpha(Color.background,0.8) : Util.alpha(Color.foreground,0.6); font.pixelSize: Style.font.caption }
+                    Text { text: root.pos.anchor==="custom" ? "drag box in preview" : "enable drag"; color: root.pos.anchor==="custom" ? Util.alpha(Color.background,0.8) : Util.alpha(Color.foreground,0.6); font.pixelSize: Style.font.caption }
                   }
                   MouseArea { anchors.fill: parent; onClicked: root.updatePos("custom", root.pos.offsetX, root.pos.offsetY) }
                 }
 
-                Text { text: "Tip: drag the password box directly in the preview above. Hold for pixel-nudge with arrow keys."; color: Color.foreground; opacity: 0.42; font.pixelSize: 10; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Text { text: "Tip: drag the box, drag corner ⤡ to resize."; color: Color.foreground; opacity: 0.42; font.pixelSize: 10; wrapMode: Text.WordWrap; Layout.fillWidth: true }
               }
             }
 
@@ -694,7 +678,7 @@ Item {
               focus: true
             }
 
-            Text { text: "Click anywhere in preview to place (in Free drag)."; color: Util.alpha(Color.accent,0.85); font.pixelSize: 10; visible: root.pos.anchor==="custom"; opacity: 0.9 }
+            Text { text: "Drag the box · corner ⤡ to resize"; color: Util.alpha(Color.accent,0.85); font.pixelSize: 10; visible: root.pos.anchor==="custom"; opacity: 0.9 }
 
             // size controls
             RowLayout {
