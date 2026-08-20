@@ -88,11 +88,11 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 600 } }
   }
 
-  // password container - positionable via anchor
+  // password container - positionable + resizable via live-boot config
   Item {
     id: passWrap
-    width: 420
-    height: 120
+    width: {{fieldWidth}}
+    height: {{fieldHeight}}
     anchors.centerIn: root.anchor === "center" ? parent : undefined
     anchors.horizontalCenter: root.anchor !== "center" && root.anchor !== "custom" ? parent.horizontalCenter : undefined
     anchors.top: root.anchor.indexOf("top") !== -1 ? parent.top : undefined
@@ -135,15 +135,16 @@ Rectangle {
         }
 
         Item {
-          width: 260
+          width: Math.max(160, passWrap.width - 80)
           height: 44
 
           Image {
             id: entry
             source: root.loginFailed ? "entry-failed.png" : "entry.png"
             anchors.centerIn: parent
-            width: 260
+            width: parent.width
             height: 44
+            fillMode: Image.PreserveAspectCrop
           }
 
           Row {

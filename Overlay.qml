@@ -23,11 +23,13 @@ Item {
   property string filterText: ""
   property bool videoReady: false
   property var pos: ({ anchor: "center", offsetX: 0, offsetY: 0 })
+  property var fieldSize: ({ width: 340, height: 56 })
   property bool audioEnabled: false
   property bool previewHasAudio: false
   property string previewVideo: ""
   property string previewPoster: ""
   property bool dragging: false
+  property bool resizing: false
 
   readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || home + "/.local/state") + "/omarchy/live-boot"
   readonly property string configPath: stateDir + "/config.json"
@@ -67,9 +69,12 @@ Item {
       previewVideo = rows[0].filePath
       previewPoster = rows[0].thumbnailPath
     }
-    // load pos/audio from args or file
+    // load pos/size/audio from args or file
     if (args.pos && typeof args.pos === "object") pos = args.pos
-    else loadPos()
+    if (args.fieldSize && typeof args.fieldSize === "object") fieldSize = { width: Math.max(200,Math.min(600, args.fieldSize.width||340)), height: Math.max(40,Math.min(120, args.fieldSize.height||56)) }
+    else if (args.size && typeof args.size === "object") fieldSize = { width: Math.max(200,Math.min(600, args.size.width||340)), height: Math.max(40,Math.min(120, args.size.height||56)) }
+    else if (!args.pos) loadPos() // loadPos also loads fieldSize
+    else if (typeof args.audioEnabled !== "boolean") loadPos()
     if (typeof args.audioEnabled === "boolean") audioEnabled = args.audioEnabled
     else if (typeof args.audio === "boolean") audioEnabled = args.audio
     opened = true
@@ -99,6 +104,8 @@ Item {
       try {
         var cfg = JSON.parse(String(loadPosOut.text || "{}"))
         if (cfg.pos) root.pos = cfg.pos
+        if (cfg.fieldSize && typeof cfg.fieldSize === "object") root.fieldSize = { width: Math.max(200,Math.min(600, cfg.fieldSize.width||340)), height: Math.max(40,Math.min(120, cfg.fieldSize.height||56)) }
+        else if (cfg.size && typeof cfg.size === "object") root.fieldSize = { width: Math.max(200,Math.min(600, cfg.size.width||340)), height: Math.max(40,Math.min(120, cfg.size.height||56)) }
         if (typeof cfg.audioEnabled === "boolean") root.audioEnabled = cfg.audioEnabled
         if (cfg.video && !root.previewVideo) {
           root.previewVideo = String(cfg.video)
@@ -142,18 +149,18 @@ Item {
 
   function applySelected() {
     if (!selectedPath) return
-    // poster is thumbnail for now; script will regenerate best frame
     var poster = previewPoster
     var audio = audioEnabled ? "true" : "false"
-    // call service IPC via shell - include audio flag
     Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot setVideoWithAudio " + Util.shellQuote(selectedPath) + " " + Util.shellQuote(poster) + " " + Util.shellQuote(audio) + " >/dev/null 2>&1 &"])
-    // also persist pos immediately (pos IPC also syncs, but setVideoWithAudio already syncs)
-    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot setPosition " + Util.shellQuote(pos.anchor) + " " + Util.shellQuote(String(pos.offsetX)) + " " + Util.shellQuote(String(pos.offsetY)) + " >/dev/null 2>&1; omarchy-shell -q live-boot setAudio " + Util.shellQuote(audio) + " >/dev/null 2>&1 &"])
+    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot setPosition " + Util.shellQuote(pos.anchor) + " " + Util.shellQuote(String(pos.offsetX)) + " " + Util.shellQuote(String(pos.offsetY)) + " >/dev/null 2>&1; omarchy-shell -q live-boot setAudio " + Util.shellQuote(audio) + " >/dev/null 2>&1; omarchy-shell -q live-boot setFieldSize " + Util.shellQuote(String(fieldSize.width)) + " " + Util.shellQuote(String(fieldSize.height)) + " >/dev/null 2>&1 &"])
     close()
   }
 
   function updatePos(anchor, ox, oy) {
     pos = { anchor: anchor, offsetX: ox, offsetY: oy }
+  }
+  function updateFieldSize(w, h) {
+    fieldSize = { width: Math.max(200, Math.min(600, w)), height: Math.max(40, Math.min(120, h)) }
   }
 
   // position helpers for preview
@@ -388,24 +395,26 @@ Item {
             // dim while loading
             Rectangle { anchors.fill: parent; color: "#1a1b26"; opacity: root.videoReady ? 0 : 1; Behavior on opacity { NumberAnimation{duration:400}} }
 
-            // password overlay - positionable
+            // password overlay - positionable + resizable
             Item {
               id: passWrap
-              width: 340
-              height: 56
-              // anchor logic
+              width: root.fieldSize.width
+              height: root.fieldSize.height
+              // anchor logic — custom uses free x/y, others use anchors (x/y ignored)
               anchors.centerIn: root.pos.anchor === "center" ? parent : undefined
-              anchors.horizontalCenter: root.pos.anchor !== "center" ? parent.horizontalCenter : undefined
+              anchors.horizontalCenter: root.pos.anchor !== "center" && root.pos.anchor !== "custom" ? parent.horizontalCenter : undefined
               anchors.top: root.pos.anchor.indexOf("top") !== -1 ? parent.top : undefined
               anchors.bottom: root.pos.anchor.indexOf("bottom") !== -1 ? parent.bottom : undefined
               anchors.topMargin: root.pos.anchor.indexOf("top") !== -1 ? 24 + root.pos.offsetY : 0
               anchors.bottomMargin: root.pos.anchor.indexOf("bottom") !== -1 ? 24 - root.pos.offsetY : 0
-              x: root.pos.anchor === "custom" ? parent.width/2 - width/2 + root.pos.offsetX : x
-              y: root.pos.anchor === "custom" ? parent.height/2 - height/2 + root.pos.offsetY : y
+              x: root.pos.anchor === "custom" ? parent.width/2 - width/2 + root.pos.offsetX : 0
+              y: root.pos.anchor === "custom" ? parent.height/2 - height/2 + root.pos.offsetY : 0
               opacity: root.videoReady ? 1 : 0
               Behavior on opacity { NumberAnimation{duration:600}}
-              Behavior on x { NumberAnimation{duration:200}}
-              Behavior on y { NumberAnimation{duration:200}}
+              Behavior on x { enabled: !root.dragging && !root.resizing; NumberAnimation{duration:120; easing.type: Easing.OutCubic} }
+              Behavior on y { enabled: !root.dragging && !root.resizing; NumberAnimation{duration:120; easing.type: Easing.OutCubic} }
+              Behavior on width { enabled: !root.resizing; NumberAnimation{duration:140} }
+              Behavior on height { enabled: !root.resizing; NumberAnimation{duration:140} }
 
               // entry bg
               Rectangle {
@@ -430,19 +439,59 @@ Item {
               }
 
               MouseArea {
+                id: dragArea
                 anchors.fill: parent
+                anchors.rightMargin: 12 // leave corner for resize handle
+                anchors.bottomMargin: 12
                 drag.target: root.pos.anchor === "custom" ? passWrap : undefined
                 drag.axis: Drag.XAndYAxis
+                drag.minimumX: -preview.width/2 + passWrap.width/2 + 8
+                drag.maximumX: preview.width/2 - passWrap.width/2 - 8
+                drag.minimumY: -preview.height/2 + passWrap.height/2 + 8
+                drag.maximumY: preview.height/2 - passWrap.height/2 - 8
+                cursorShape: root.pos.anchor==="custom" ? Qt.SizeAllCursor : Qt.ArrowCursor
+                enabled: root.pos.anchor==="custom"
                 onPressed: root.dragging = true
                 onReleased: {
                   root.dragging = false
                   if (root.pos.anchor === "custom") {
-                    var cx = parent.width/2
-                    var cy = parent.height/2
+                    var cx = preview.width/2
+                    var cy = preview.height/2
                     root.updatePos("custom", Math.round(passWrap.x + passWrap.width/2 - cx), Math.round(passWrap.y + passWrap.height/2 - cy))
                   }
                 }
-                onPositionChanged: if (root.dragging && root.pos.anchor==="custom") root.updatePos("custom", Math.round(passWrap.x + passWrap.width/2 - parent.width/2), Math.round(passWrap.y + passWrap.height/2 - parent.height/2))
+                // no live pos updates — avoids stutter; only final pos on release
+              }
+
+              // resize handle (bottom-right corner)
+              Rectangle {
+                id: resizeHandle
+                width: 18; height: 18
+                radius: 4
+                color: Util.alpha(Color.accent, root.resizing ? 0.95 : 0.75)
+                border.color: Color.background
+                border.width: 1
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: 2
+                anchors.bottomMargin: 2
+                visible: true
+                Text { anchors.centerIn: parent; text: "⤡"; color: Color.background; font.pixelSize: 10; rotation: 0 }
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.SizeFDiagCursor
+                  onPressed: root.resizing = true
+                  onReleased: root.resizing = false
+                  onPositionChanged: function(mouse) {
+                    if (!root.resizing) return
+                    var newW = Math.max(200, Math.min(600, passWrap.width + mouse.x - width/2))
+                    var newH = Math.max(40, Math.min(120, passWrap.height + mouse.y - height/2))
+                    root.updateFieldSize(Math.round(newW), Math.round(newH))
+                  }
+                  // also support drag
+                  drag.target: resizeHandle
+                  drag.axis: Drag.XAndYAxis
+                }
               }
             }
 
@@ -646,6 +695,44 @@ Item {
             }
 
             Text { text: "Click anywhere in preview to place (in Free drag)."; color: Util.alpha(Color.accent,0.85); font.pixelSize: 10; visible: root.pos.anchor==="custom"; opacity: 0.9 }
+
+            // size controls
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 8
+              Text { text: "Size"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+              Rectangle {
+                Layout.fillWidth: true; height: 28; radius: 6
+                color: Util.alpha(Color.background,0.35); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.6); border.width: 1
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.leftMargin: 6; anchors.rightMargin: 6
+                  spacing: 4
+                  Text { text: "W"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+                  Rectangle {
+                    Layout.preferredWidth: 72; height: 22; radius: 4
+                    color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                    RowLayout { anchors.fill: parent; spacing: 0
+                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width-10, fieldSize.height) } }
+                      Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(fieldSize.width); color: Color.foreground; font.pixelSize: 11 }
+                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width+10, fieldSize.height) } }
+                    }
+                  }
+                  Text { text: "H"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+                  Rectangle {
+                    Layout.preferredWidth: 64; height: 22; radius: 4
+                    color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                    RowLayout { anchors.fill: parent; spacing: 0
+                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width, fieldSize.height-4) } }
+                      Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(fieldSize.height); color: Color.foreground; font.pixelSize: 11 }
+                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width, fieldSize.height+4) } }
+                    }
+                  }
+                  Item { Layout.fillWidth: true }
+                  Text { text: "drag corner to resize"; color: Util.alpha(Color.foreground,0.45); font.pixelSize: 9; visible: true }
+                }
+              }
+            }
           }
 
           // audio toggle

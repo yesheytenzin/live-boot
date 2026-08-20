@@ -17,6 +17,7 @@ Item {
   property string posterPath: ""
   property var pos: ({ anchor: "center", offsetX: 0, offsetY: 0 })
   property bool audioEnabled: false
+  property var fieldSize: ({ width: 340, height: 56 })
 
   function loadConfig() {
     if (!configFile.text()) return
@@ -27,13 +28,15 @@ Item {
       if (cfg.pos && typeof cfg.pos === "object") pos = cfg.pos
       if (typeof cfg.audioEnabled === "boolean") audioEnabled = cfg.audioEnabled
       else if (typeof cfg.audio === "boolean") audioEnabled = cfg.audio
+      if (cfg.fieldSize && typeof cfg.fieldSize === "object") fieldSize = { width: Math.max(200, Math.min(600, parseInt(cfg.fieldSize.width)||340)), height: Math.max(40, Math.min(120, parseInt(cfg.fieldSize.height)||56)) }
+      else if (cfg.size && typeof cfg.size === "object") fieldSize = { width: Math.max(200, Math.min(600, parseInt(cfg.size.width)||340)), height: Math.max(40, Math.min(120, parseInt(cfg.size.height)||56)) }
     } catch (e) {
       console.warn("live-boot config parse failed", e)
     }
   }
 
   function saveConfig() {
-    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled }
+    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled, fieldSize: fieldSize }
     configFile.setText(JSON.stringify(payload, null, 2) + "\n")
   }
 
@@ -108,6 +111,13 @@ Item {
       root.saveConfig()
       root.syncSddm()
     }
+    function setFieldSize(width: string, height: string): void {
+      var w = Math.max(200, Math.min(600, parseInt(width,10)||340))
+      var h = Math.max(40, Math.min(120, parseInt(height,10)||56))
+      root.fieldSize = { width: w, height: h }
+      root.saveConfig()
+      root.syncSddm()
+    }
     function setAudio(enabled: string): void {
       root.audioEnabled = String(enabled) === "true" || String(enabled) === "1"
       root.saveConfig()
@@ -121,7 +131,7 @@ Item {
       root.syncSddm()
     }
     function status(): string {
-      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled })
+      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled, fieldSize: root.fieldSize })
     }
     function stop(): void {
       root.videoPath = ""
