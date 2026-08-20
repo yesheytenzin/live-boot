@@ -18,6 +18,41 @@ Rectangle {
   property int logoOffsetY: {{logoOffsetY}}
   property bool audioEnabled: {{audioEnabled}}
   property bool showLogo: {{showLogo}}
+  property string revealMode: "{{revealMode}}"
+  property int transitionDuration: {{transitionDuration}}
+  property int passwordDelay: {{passwordDelay}}
+  property bool revealStarted: false
+  property bool logoRevealed: false
+  property bool passwordRevealed: false
+  focus: true
+
+  function revealLogin() {
+    if (revealStarted) {
+      if (!passwordRevealed) { passwordRevealTimer.stop(); showPassword() }
+      return
+    }
+    revealStarted = true
+    fallbackTimer.stop()
+    endSafety.stop()
+    if (revealMode === "video-end" && player.playbackState === MediaPlayer.PlayingState) player.pause()
+    logoRevealed = true
+    if (passwordDelay <= 0) showPassword()
+    else passwordRevealTimer.restart()
+  }
+
+  function showPassword() {
+    passwordRevealed = true
+    Qt.callLater(function() { password.forceActiveFocus() })
+  }
+
+  Keys.onPressed: function(event) {
+    if (!passwordRevealed && (event.key === Qt.Key_Escape || event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+      revealLogin()
+      event.accepted = true
+    }
+  }
+
+  Timer { id: passwordRevealTimer; interval: root.passwordDelay; onTriggered: root.showPassword() }
   property int sessionIndex: {
     for (var i = 0; i < sessionModel.rowCount(); i++) {
       var name = (sessionModel.data(sessionModel.index(i, 0), Qt.DisplayRole) || "").toString()
@@ -52,11 +87,18 @@ Rectangle {
       videoOutput: videoOut
       audioOutput: AudioOutput {
         id: sddmAudio
-        muted: !root.audioEnabled
+        muted: !root.audioEnabled || (root.revealMode === "video-end" && root.revealStarted)
         volume: 0.8
       }
-      loops: MediaPlayer.Infinite
-      onErrorOccurred: function(es, s) { console.warn("live-boot SDDM player error", es, s) }
+      loops: root.revealMode === "video-end" ? 1 : MediaPlayer.Infinite
+      onDurationChanged: {
+        if (root.revealMode === "video-end" && duration > 0) {
+          endSafety.interval = duration + 3000
+          endSafety.restart()
+        }
+      }
+      onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) root.revealLogin()
+      onErrorOccurred: function(es, s) { console.warn("live-boot SDDM player error", es, s); root.revealLogin() }
     }
 
     VideoOutput {
@@ -68,7 +110,12 @@ Rectangle {
 
     Connections {
       target: videoOut.videoSink
-      function onVideoFrameChanged() { if (!root.videoReady) root.videoReady = true }
+      function onVideoFrameChanged() {
+        if (!root.videoReady) {
+          root.videoReady = true
+          if (root.revealMode === "first-frame") root.revealLogin()
+        }
+      }
     }
 
     // if video file missing or no decoder, stay on poster
@@ -80,15 +127,22 @@ Rectangle {
       // fallback timer to show content even if video never fires frameReady
       fallbackTimer.restart()
     }
-    Timer { id: fallbackTimer; interval: 2500; onTriggered: root.videoReady = true }
+    Timer { id: fallbackTimer; interval: 5000; onTriggered: if (!root.videoReady) root.revealLogin() }
+    Timer { id: endSafety; interval: 15000; running: root.revealMode === "video-end"; onTriggered: root.revealLogin() }
   }
 
   // dark scrim for legibility
   Rectangle {
     anchors.fill: parent
     color: "#0e0e14"
-    opacity: root.videoReady ? 0.18 : 0.0
-    Behavior on opacity { NumberAnimation { duration: 600 } }
+    opacity: root.logoRevealed ? 0.18 : 0.0
+    Behavior on opacity { NumberAnimation { duration: root.transitionDuration } }
+  }
+
+  MouseArea {
+    anchors.fill: parent
+    enabled: root.revealMode === "video-end" && !root.passwordRevealed
+    onClicked: root.revealLogin()
   }
 
   // Logo is independent from the password field.
@@ -99,9 +153,10 @@ Rectangle {
     x: root.width/2 - width/2 + root.logoOffsetX
     y: root.height/2 - height/2 + root.logoOffsetY
     visible: root.showLogo
-    opacity: passWrap.opacity
-    Behavior on x { NumberAnimation { duration: 300 } }
-    Behavior on y { NumberAnimation { duration: 300 } }
+    opacity: root.logoRevealed ? 1 : 0
+    Behavior on opacity { NumberAnimation { duration: root.transitionDuration; easing.type: Easing.OutCubic } }
+    Behavior on x { NumberAnimation { duration: root.transitionDuration } }
+    Behavior on y { NumberAnimation { duration: root.transitionDuration } }
 
     Image {
       anchors.fill: parent
@@ -126,10 +181,8 @@ Rectangle {
     anchors.bottomMargin: root.anchor.indexOf("bottom") !== -1 ? 40 - root.offsetY : 0
     x: root.anchor === "custom" ? parent.width/2 - width/2 + root.offsetX : x
     y: root.anchor === "custom" ? parent.height/2 - height/2 + root.offsetY : y
-    opacity: 1
-    Component.onCompleted: { passWrap.opacity = 0; fadeIn.restart() }
-    Timer { id: fadeIn; interval: 700; onTriggered: passWrap.opacity = 1 }
-    Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+    opacity: root.passwordRevealed ? 1 : 0
+    Behavior on opacity { NumberAnimation { duration: root.transitionDuration; easing.type: Easing.OutCubic } }
     Behavior on x { NumberAnimation { duration: 300 } }
     Behavior on y { NumberAnimation { duration: 300 } }
 
@@ -185,9 +238,10 @@ Rectangle {
             selectionColor: "transparent"
             selectedTextColor: "transparent"
             cursorDelegate: Item {}
-            focus: true
+            enabled: root.passwordRevealed
+            focus: root.passwordRevealed
             onTextChanged: root.loginFailed = false
-            Keys.onPressed: {
+            Keys.onPressed: function(event) {
               if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                 sddm.login(root.currentUser, password.text, root.sessionIndex)
                 event.accepted = true
@@ -198,5 +252,5 @@ Rectangle {
     }
   }
 
-  Component.onCompleted: password.forceActiveFocus()
+  Component.onCompleted: root.forceActiveFocus()
 }

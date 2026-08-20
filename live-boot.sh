@@ -45,7 +45,7 @@ has_audio_track() {
 
 ensure_config() {
   if [[ ! -f $config_path ]]; then
-    printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
+    printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250}\n' >"$config_path"
   fi
   # migrate legacy video/poster files into json if json empty
   local vid="" post=""
@@ -64,7 +64,7 @@ ensure_config() {
     printf '{"video":%s,"poster":%s,"pos":%s,"audioEnabled":%s}\n' "$(printf '%s' "$vid" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$(printf '%s' "$post" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$pos_json" "$audio_json" >"$config_path"
   fi
   # ensure keys exist
-  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); res=d.setdefault('previewRes', {'width':1920,'height':1080}); lw=min(800, int(res.get('width',1920))*0.8); lh=round(lw*188/800); d.setdefault('pos', {'anchor':'custom','offsetX':0,'offsetY':round(lh/2+20)}); d.setdefault('fieldSize', {'width':335,'height':48}); d.setdefault('showLogo', True); d.setdefault('logoPos', {'offsetX':0,'offsetY':-44}); d.setdefault('logoSize', {'width':round(lw),'height':lh}); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
+  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); res=d.setdefault('previewRes', {'width':1920,'height':1080}); lw=min(800, int(res.get('width',1920))*0.8); lh=round(lw*188/800); d.setdefault('pos', {'anchor':'custom','offsetX':0,'offsetY':round(lh/2+20)}); d.setdefault('fieldSize', {'width':335,'height':48}); d.setdefault('showLogo', True); d.setdefault('logoPos', {'offsetX':0,'offsetY':-44}); d.setdefault('logoSize', {'width':round(lw),'height':lh}); d.setdefault('revealMode','first-frame'); d.setdefault('transitionDuration',700); d.setdefault('passwordDelay',250); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
 }
 
 load_pos() {
@@ -74,7 +74,7 @@ load_pos() {
 
 sync_sddm() {
   ensure_config
-  local video poster anchor ox oy audioEnabled audioMuted fieldW fieldH showLogo logoX logoY logoW logoH
+  local video poster anchor ox oy audioEnabled audioMuted fieldW fieldH showLogo logoX logoY logoW logoH revealMode transitionDuration passwordDelay
   video=$(python3 -c "import json; print(json.load(open('$config_path')).get('video',''))" 2>/dev/null || echo "")
   poster=$(python3 -c "import json; print(json.load(open('$config_path')).get('poster',''))" 2>/dev/null || echo "")
   audioEnabled=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
@@ -86,6 +86,9 @@ sync_sddm() {
   logoH=$(python3 -c "import json; print(json.load(open('$config_path')).get('logoSize',{}).get('height',188))" 2>/dev/null || echo "188")
   fieldW=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('width',335))" 2>/dev/null || echo "335")
   fieldH=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('height',48))" 2>/dev/null || echo "48")
+  revealMode=$(python3 -c "import json; print(json.load(open('$config_path')).get('revealMode','first-frame'))" 2>/dev/null || echo "first-frame")
+  transitionDuration=$(python3 -c "import json; print(json.load(open('$config_path')).get('transitionDuration',700))" 2>/dev/null || echo "700")
+  passwordDelay=$(python3 -c "import json; print(json.load(open('$config_path')).get('passwordDelay',250))" 2>/dev/null || echo "250")
   read -r anchor ox oy <<<"$(load_pos)"
 
   if [[ -z $video || ! -f $video ]]; then
@@ -115,7 +118,7 @@ sync_sddm() {
 
   # render template if exists, else use sddm Main.qml with injected pos/size via sed
   if [[ -f $tpl ]]; then
-    sed -e "s/{{anchor}}/$anchor/g" -e "s/{{offsetX}}/$ox/g" -e "s/{{offsetY}}/$oy/g" -e "s/{{audioMuted}}/$audioMuted/g" -e "s/{{audioEnabled}}/$audioEnabled/g" -e "s/{{showLogo}}/$showLogo/g" -e "s/{{logoOffsetX}}/$logoX/g" -e "s/{{logoOffsetY}}/$logoY/g" -e "s/{{logoWidth}}/$logoW/g" -e "s/{{logoHeight}}/$logoH/g" -e "s/{{fieldWidth}}/$fieldW/g" -e "s/{{fieldHeight}}/$fieldH/g" "$tpl" >"$tmp_main"
+    sed -e "s/{{anchor}}/$anchor/g" -e "s/{{offsetX}}/$ox/g" -e "s/{{offsetY}}/$oy/g" -e "s/{{audioMuted}}/$audioMuted/g" -e "s/{{audioEnabled}}/$audioEnabled/g" -e "s/{{showLogo}}/$showLogo/g" -e "s/{{logoOffsetX}}/$logoX/g" -e "s/{{logoOffsetY}}/$logoY/g" -e "s/{{logoWidth}}/$logoW/g" -e "s/{{logoHeight}}/$logoH/g" -e "s/{{fieldWidth}}/$fieldW/g" -e "s/{{fieldHeight}}/$fieldH/g" -e "s/{{revealMode}}/$revealMode/g" -e "s/{{transitionDuration}}/$transitionDuration/g" -e "s/{{passwordDelay}}/$passwordDelay/g" "$tpl" >"$tmp_main"
   else
     cp -f "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "/usr/share/omarchy/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "$sddm_main" "$tmp_main"
   fi
@@ -142,7 +145,7 @@ resume_live_boot() {
 }
 
 clear_boot() {
-  printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
+  printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250}\n' >"$config_path"
   rm -f "$video_state" "$poster_state" "$expected_state"
   sync_sddm
 }
@@ -206,6 +209,9 @@ current_show_logo=$(python3 -c "import json; print('true' if json.load(open('$co
 current_logo_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoPos',{'offsetX':0,'offsetY':-44})))" 2>/dev/null || echo '{"offsetX":0,"offsetY":-44}')
 current_logo_size_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoSize',{'width':800,'height':188})))" 2>/dev/null || echo '{"width":800,"height":188}')
 current_res_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('previewRes',{'width':1920,'height':1080})))" 2>/dev/null || echo '{"width":1920,"height":1080}')
+current_reveal_mode=$(python3 -c "import json; print(json.load(open('$config_path')).get('revealMode','first-frame'))" 2>/dev/null || echo "first-frame")
+current_transition_duration=$(python3 -c "import json; print(json.load(open('$config_path')).get('transitionDuration',700))" 2>/dev/null || echo "700")
+current_password_delay=$(python3 -c "import json; print(json.load(open('$config_path')).get('passwordDelay',250))" 2>/dev/null || echo "250")
 current_audio=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
 
 rows_file=$(mktemp)
@@ -238,7 +244,7 @@ if [[ ! -s $rows_file ]]; then
 fi
 
 rows_b64=$(base64 -w 0 <"$rows_file")
-payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"previewRes":%s,"themeDir":"%s","audioEnabled":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_res_json" "$sddm_theme_dir" "$current_audio")
+payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"previewRes":%s,"themeDir":"%s","audioEnabled":%s,"revealMode":"%s","transitionDuration":%s,"passwordDelay":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_res_json" "$sddm_theme_dir" "$current_audio" "$current_reveal_mode" "$current_transition_duration" "$current_password_delay")
 
 # summon overlay; keepLoaded overlay stays mounted
 if ! omarchy-shell shell summon live-boot "$payload" >/dev/null 2>&1; then

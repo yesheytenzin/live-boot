@@ -30,6 +30,12 @@ Item {
   property var logoSize: ({ width: 800, height: 188 })
   property var previewRes: ({ width: 1920, height: 1080 })
   property string themeDir: "/usr/share/sddm/themes/omarchy"
+  property string revealMode: "first-frame"
+  property int transitionDuration: 700
+  property int passwordDelay: 250
+  property bool previewRevealStarted: false
+  property bool previewLogoRevealed: false
+  property bool previewPasswordRevealed: false
   property bool previewHasAudio: false
   property string previewVideo: ""
   property string previewPoster: ""
@@ -89,13 +95,13 @@ Item {
     if (args.logoSize && typeof args.logoSize === "object") logoSize = { width: Math.max(80,Math.min(1200,args.logoSize.width||800)), height: Math.max(20,Math.min(400,args.logoSize.height||188)) }
     if (args.previewRes && typeof args.previewRes === "object") previewRes = { width: parseInt(args.previewRes.width)||1920, height: parseInt(args.previewRes.height)||1080 }
     if (typeof args.themeDir === "string" && args.themeDir) themeDir = String(args.themeDir)
+    if (args.revealMode === "video-end" || args.revealMode === "first-frame") revealMode = args.revealMode
+    if (args.transitionDuration !== undefined) transitionDuration = Math.max(100, Math.min(3000, parseInt(args.transitionDuration)||700))
+    if (args.passwordDelay !== undefined) passwordDelay = Math.max(0, Math.min(3000, parseInt(args.passwordDelay)||0))
     opened = true
     videoReady = false
     previewHasAudio = false
-    if (previewVideo) {
-      previewPlayer.play()
-      audioProbeProc.running = true
-    }
+    if (previewVideo) { replayTransition(); audioProbeProc.running = true }
   }
 
   function close() {
@@ -125,6 +131,9 @@ Item {
         if (cfg.previewRes && typeof cfg.previewRes === "object") {
           root.previewRes = { width: parseInt(cfg.previewRes.width)||1920, height: parseInt(cfg.previewRes.height)||1080 }
         }
+        if (cfg.revealMode === "video-end" || cfg.revealMode === "first-frame") root.revealMode = cfg.revealMode
+        if (cfg.transitionDuration !== undefined) root.transitionDuration = Math.max(100, Math.min(3000, parseInt(cfg.transitionDuration)||700))
+        if (cfg.passwordDelay !== undefined) root.passwordDelay = Math.max(0, Math.min(3000, parseInt(cfg.passwordDelay)||0))
         if (cfg.video && !root.previewVideo) {
           root.previewVideo = String(cfg.video)
           root.previewPoster = String(cfg.poster || "")
@@ -157,20 +166,45 @@ Item {
     selectedPath = rows[idx].filePath
     previewVideo = rows[idx].filePath
     previewPoster = rows[idx].thumbnailPath
-    videoReady = false
     previewHasAudio = false
+    replayTransition()
+    audioProbeProc.running = true
+  }
+
+  function revealPreview() {
+    if (previewRevealStarted) {
+      if (!previewPasswordRevealed) { previewPasswordTimer.stop(); previewPasswordRevealed = true }
+      return
+    }
+    previewRevealStarted = true
+    previewFallbackTimer.stop()
+    previewEndSafety.stop()
+    if (revealMode === "video-end" && previewPlayer.playbackState === MediaPlayer.PlayingState) previewPlayer.pause()
+    previewLogoRevealed = true
+    if (passwordDelay <= 0) previewPasswordRevealed = true
+    else previewPasswordTimer.restart()
+  }
+
+  function replayTransition() {
+    previewRevealStarted = false
+    previewLogoRevealed = false
+    previewPasswordRevealed = false
+    videoReady = false
+    previewPasswordTimer.stop()
+    previewFallbackTimer.stop()
+    previewEndSafety.stop()
+    previewEndSafety.interval = 15000
     previewPlayer.stop()
     previewPlayer.source = fileUrl(previewVideo)
     previewPlayer.play()
-    audioProbeProc.running = true
+    previewFallbackTimer.restart()
+    if (revealMode === "video-end") previewEndSafety.restart()
   }
 
   function applySelected() {
     if (!selectedPath) return
-    var poster = previewPoster
-    var audio = audioEnabled ? "true" : "false"
-    var logo = showLogo ? "true" : "false"
-    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot applySettings " + Util.shellQuote(selectedPath) + " " + Util.shellQuote(poster) + " " + Util.shellQuote(audio) + " " + Util.shellQuote(pos.anchor) + " " + Util.shellQuote(String(pos.offsetX)) + " " + Util.shellQuote(String(pos.offsetY)) + " " + Util.shellQuote(String(fieldSize.width)) + " " + Util.shellQuote(String(fieldSize.height)) + " " + Util.shellQuote(logo) + " " + Util.shellQuote(String(logoPos.offsetX)) + " " + Util.shellQuote(String(logoPos.offsetY)) + " " + Util.shellQuote(String(logoSize.width)) + " " + Util.shellQuote(String(logoSize.height)) + " " + Util.shellQuote(String(previewRes.width)) + " " + Util.shellQuote(String(previewRes.height)) + " >/dev/null 2>&1 &"])
+    var payload = JSON.stringify({ video: selectedPath, poster: previewPoster, audioEnabled: audioEnabled, pos: pos, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay })
+    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot applySettings " + Util.shellQuote(payload) + " >/dev/null 2>&1 &"])
     close()
   }
 
@@ -194,6 +228,10 @@ Item {
     updateLogoSize(defaultLogoWidth(), defaultLogoHeight())
     updateFieldSize(335, 48)
   }
+
+  Timer { id: previewPasswordTimer; interval: root.passwordDelay; onTriggered: root.previewPasswordRevealed = true }
+  Timer { id: previewFallbackTimer; interval: 5000; onTriggered: if (!root.videoReady) root.revealPreview() }
+  Timer { id: previewEndSafety; interval: 15000; onTriggered: root.revealPreview() }
   function updatePreviewRes(w, h) {
     previewRes = { width: Math.max(640, Math.min(7680, w)), height: Math.max(480, Math.min(4320, h)) }
   }
@@ -227,7 +265,7 @@ Item {
     Rectangle {
       id: card
       width: Math.min(parent.width - 40, 1100)
-      height: Math.min(parent.height - 40, 760)
+      height: Math.min(parent.height - 40, 820)
       anchors.centerIn: parent
       radius: Style.cornerRadius
       color: Color.background
@@ -407,7 +445,7 @@ Item {
           Item {
             id: previewFrame
             Layout.fillWidth: true
-            Layout.preferredHeight: 260
+            Layout.preferredHeight: 230
 
             Rectangle {
               id: preview
@@ -426,9 +464,16 @@ Item {
             MediaPlayer {
               id: previewPlayer
               videoOutput: previewOut
-              audioOutput: AudioOutput { id: previewAudio; muted: !root.audioEnabled; volume: 0.85 }
-              loops: MediaPlayer.Infinite
-              onErrorOccurred: console.warn("preview error", errorString)
+              audioOutput: AudioOutput { id: previewAudio; muted: !root.audioEnabled || (root.revealMode === "video-end" && root.previewRevealStarted); volume: 0.85 }
+              loops: root.revealMode === "video-end" ? 1 : MediaPlayer.Infinite
+              onDurationChanged: {
+                if (root.revealMode === "video-end" && duration > 0) {
+                  previewEndSafety.interval = duration + 3000
+                  previewEndSafety.restart()
+                }
+              }
+              onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) root.revealPreview()
+              onErrorOccurred: { console.warn("preview error", errorString); root.revealPreview() }
             }
             VideoOutput {
               id: previewOut
@@ -446,12 +491,20 @@ Item {
             }
             Connections {
               target: previewOut.videoSink
-              function onVideoFrameChanged() { if (root.previewVideo) root.videoReady = true }
+              function onVideoFrameChanged() {
+                if (root.previewVideo && !root.videoReady) {
+                  root.videoReady = true
+                  if (root.revealMode === "first-frame") root.revealPreview()
+                }
+              }
             }
-            // dim while loading
-            Rectangle { anchors.fill: parent; color: "#1a1b26"; opacity: root.videoReady ? 0 : 1; Behavior on opacity { NumberAnimation{duration:400}} }
             // scrim for legibility - mirrors SDDM Main.qml
-            Rectangle { anchors.fill: parent; color: "#0e0e14"; opacity: root.videoReady ? 0.18 : 0.0; Behavior on opacity { NumberAnimation{duration:600}} }
+            Rectangle { anchors.fill: parent; color: "#0e0e14"; opacity: root.previewLogoRevealed ? 0.18 : 0.0; Behavior on opacity { NumberAnimation{duration:root.transitionDuration}} }
+            MouseArea {
+              anchors.fill: parent
+              enabled: root.revealMode === "video-end" && !root.previewPasswordRevealed
+              onClicked: root.revealPreview()
+            }
 
             // Logo has its own position and drag target.
             Item {
@@ -461,7 +514,8 @@ Item {
               x: preview.width/2 - width/2 + root.logoPos.offsetX * preview.displayScale
               y: preview.height/2 - height/2 + root.logoPos.offsetY * preview.displayScale
               visible: root.showLogo
-              opacity: root.opened ? 1 : 0
+              opacity: root.previewLogoRevealed ? 1 : 0
+              Behavior on opacity { NumberAnimation { duration: root.transitionDuration; easing.type: Easing.OutCubic } }
               Behavior on x { enabled: !root.logoDragging; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
               Behavior on y { enabled: !root.logoDragging; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
               Behavior on width { enabled: !root.logoResizing; NumberAnimation { duration: 120 } }
@@ -478,6 +532,7 @@ Item {
                 anchors.fill: parent
                 anchors.rightMargin: 14
                 anchors.bottomMargin: 14
+                enabled: root.previewLogoRevealed
                 drag.target: logoWrap
                 drag.axis: Drag.XAndYAxis
                 drag.minimumX: 4
@@ -502,6 +557,7 @@ Item {
                 Text { anchors.centerIn: parent; text: "⤡"; color: Color.background; font.pixelSize: 9 }
                 MouseArea {
                   anchors.fill: parent
+                  enabled: root.previewLogoRevealed
                   cursorShape: Qt.SizeFDiagCursor
                   onPressed: root.logoResizing = true
                   onReleased: root.logoResizing = false
@@ -529,8 +585,8 @@ Item {
               anchors.bottomMargin: root.pos.anchor.indexOf("bottom") !== -1 ? (40 - root.pos.offsetY) * preview.displayScale : 0
               x: root.pos.anchor === "custom" ? parent.width/2 - width/2 + root.pos.offsetX * preview.displayScale : 0
               y: root.pos.anchor === "custom" ? parent.height/2 - height/2 + root.pos.offsetY * preview.displayScale : 0
-              opacity: root.opened ? 1 : 0
-              Behavior on opacity { NumberAnimation{duration:600}}
+              opacity: root.previewPasswordRevealed ? 1 : 0
+              Behavior on opacity { NumberAnimation{duration:root.transitionDuration; easing.type:Easing.OutCubic} }
               Behavior on x { enabled: !root.dragging && !root.resizing; NumberAnimation{duration:120; easing.type: Easing.OutCubic} }
               Behavior on y { enabled: !root.dragging && !root.resizing; NumberAnimation{duration:120; easing.type: Easing.OutCubic} }
               Behavior on width { enabled: !root.resizing; NumberAnimation{duration:140} }
@@ -584,7 +640,7 @@ Item {
                 drag.maximumY: preview.height - passWrap.height - 4
                 drag.smoothed: false
                 cursorShape: root.pos.anchor==="custom" ? Qt.SizeAllCursor : Qt.ArrowCursor
-                enabled: root.pos.anchor==="custom"
+                enabled: root.pos.anchor==="custom" && root.previewPasswordRevealed
                 onPressed: root.dragging = true
                 onReleased: {
                   root.dragging = false
@@ -613,6 +669,7 @@ Item {
                 Text { anchors.centerIn: parent; text: "⤡"; color: Color.background; font.pixelSize: 10; rotation: 0 }
                 MouseArea {
                   anchors.fill: parent
+                  enabled: root.previewPasswordRevealed
                   cursorShape: Qt.SizeFDiagCursor
                   onPressed: root.resizing = true
                   onReleased: root.resizing = false
@@ -663,6 +720,72 @@ Item {
               Text { id: hintText; anchors.centerIn: parent; text: "Drag the password box to place"; color: Color.foreground; font.pixelSize: 10; opacity: 0.85 }
             }
           }
+          }
+
+          // --- transition: same state machine as SDDM ---
+          ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 5
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 6
+              Text { text: "Reveal"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.65 }
+              Repeater {
+                model: [{label:"Immediate", mode:"first-frame"}, {label:"After video", mode:"video-end"}]
+                delegate: Rectangle {
+                  required property var modelData
+                  width: 92; height: 26; radius: 7
+                  color: root.revealMode === modelData.mode ? Color.accent : Util.alpha(Color.background,0.5)
+                  border.color: root.revealMode === modelData.mode ? Color.accent : Color.imagePicker.unselectedBorder
+                  border.width: 1
+                  Text { anchors.centerIn: parent; text: modelData.label; color: root.revealMode === modelData.mode ? Color.background : Color.foreground; font.pixelSize: Style.font.caption; font.weight: Font.DemiBold }
+                  MouseArea { anchors.fill: parent; onClicked: { root.revealMode = modelData.mode; root.replayTransition() } }
+                }
+              }
+              Item { Layout.fillWidth: true }
+              Text {
+                text: previewPlayer.duration > 0 ? Math.round(previewPlayer.duration/100)/10 + "s" + (previewPlayer.duration > 30000 && root.revealMode === "video-end" ? " long" : "") : ""
+                color: previewPlayer.duration > 30000 && root.revealMode === "video-end" ? "#f5a97f" : Color.foreground
+                opacity: 0.65
+                font.pixelSize: Style.font.caption
+              }
+              Rectangle {
+                width: 58; height: 26; radius: 7
+                color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                Text { anchors.centerIn: parent; text: "Replay"; color: Color.foreground; font.pixelSize: Style.font.caption }
+                MouseArea { anchors.fill: parent; onClicked: root.replayTransition() }
+              }
+              Rectangle {
+                width: 48; height: 26; radius: 7
+                color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                Text { anchors.centerIn: parent; text: "Skip"; color: Color.foreground; font.pixelSize: Style.font.caption }
+                MouseArea { anchors.fill: parent; onClicked: root.revealPreview() }
+              }
+            }
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 6
+              Text { text: "Fade"; color: Color.foreground; opacity: 0.55; font.pixelSize: Style.font.caption }
+              Rectangle {
+                width: 86; height: 24; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                RowLayout { anchors.fill: parent; spacing: 0
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.transitionDuration=Math.max(100,root.transitionDuration-100) } }
+                  Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: root.transitionDuration + "ms"; color: Color.foreground; font.pixelSize: 10 }
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.transitionDuration=Math.min(3000,root.transitionDuration+100) } }
+                }
+              }
+              Text { text: "Password delay"; color: Color.foreground; opacity: 0.55; font.pixelSize: Style.font.caption }
+              Rectangle {
+                width: 86; height: 24; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                RowLayout { anchors.fill: parent; spacing: 0
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.passwordDelay=Math.max(0,root.passwordDelay-50) } }
+                  Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: root.passwordDelay + "ms"; color: Color.foreground; font.pixelSize: 10 }
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.passwordDelay=Math.min(3000,root.passwordDelay+50) } }
+                }
+              }
+              Item { Layout.fillWidth: true }
+              Text { text: root.revealMode === "video-end" ? "Click preview or Skip to reveal" : "Reveal on first frame"; color: Color.foreground; opacity: 0.4; font.pixelSize: 9 }
+            }
           }
 
           // --- display: logo + scale/resolution ---

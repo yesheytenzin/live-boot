@@ -15,7 +15,7 @@ Fork of the `live-wallpaper` pattern, but for boot only (`live-boot` id).
 2. Open **Style → Boot Background** (or run `~/.config/omarchy/plugins/live-boot/live-boot.sh`).
 3. Pick a video, choose the preview resolution, drag the logo and password independently, resize the password field, then **Apply to Boot**.
 
-Next reboot shows looping video behind the password field. Video is revealed only after first frame (no black flash); password fades in. If the video has audio and sound is enabled, it plays at SDDM (needs `qt6-multimedia` + `gst-plugins` and PipeWire/Pulse at greeter).
+Next reboot either loops video behind the login or plays it once before revealing the logo and password, depending on the selected reveal mode. If sound is enabled, audio plays at SDDM when the greeter has a PipeWire/Pulse session.
 
 ## Features
 
@@ -26,6 +26,7 @@ Next reboot shows looping video behind the password field. Video is revealed onl
 - Independent logo/password dragging and resizing (password up to 1600×320, logo up to 1200×400)
 - Resolution-aware WYSIWYG preview, including a 640×480 SDDM test-mode preset
 - Default size/position actions reproduce Omarchy's stock responsive logo and fixed 335×48 password row
+- Optional after-video reveal transition with live replay/skip preview, fade timing, and password delay controls
 - Live preview in overlay: `video → password` transition WYSIWYG
 - Keeps `background.jpg` poster as fallback if `QtMultimedia` missing
 - Restores stock SDDM on `--uninstall` or `--clear`
