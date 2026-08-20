@@ -94,8 +94,8 @@ Rectangle {
   // Logo is independent from the password field.
   Item {
     id: logoWrap
-    width: 260
-    height: Math.round(width * 188 / 800)
+    width: {{logoWidth}}
+    height: {{logoHeight}}
     x: root.width/2 - width/2 + root.logoOffsetX
     y: root.height/2 - height/2 + root.logoOffsetY
     visible: root.showLogo

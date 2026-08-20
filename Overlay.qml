@@ -27,6 +27,7 @@ Item {
   property bool audioEnabled: false
   property bool showLogo: true
   property var logoPos: ({ offsetX: 0, offsetY: -70 })
+  property var logoSize: ({ width: 260, height: 61 })
   property var previewRes: ({ width: 1920, height: 1080 })
   property string themeDir: "/usr/share/sddm/themes/omarchy"
   property bool previewHasAudio: false
@@ -34,6 +35,7 @@ Item {
   property string previewPoster: ""
   property bool dragging: false
   property bool logoDragging: false
+  property bool logoResizing: false
   property bool resizing: false
 
   readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || home + "/.local/state") + "/omarchy/live-boot"
@@ -84,6 +86,7 @@ Item {
     else if (typeof args.audio === "boolean") audioEnabled = args.audio
     if (typeof args.showLogo === "boolean") showLogo = args.showLogo
     if (args.logoPos && typeof args.logoPos === "object") logoPos = { offsetX: parseInt(args.logoPos.offsetX)||0, offsetY: parseInt(args.logoPos.offsetY)||0 }
+    if (args.logoSize && typeof args.logoSize === "object") logoSize = { width: Math.max(80,Math.min(1200,args.logoSize.width||260)), height: Math.max(20,Math.min(400,args.logoSize.height||61)) }
     if (args.previewRes && typeof args.previewRes === "object") previewRes = { width: parseInt(args.previewRes.width)||1920, height: parseInt(args.previewRes.height)||1080 }
     if (typeof args.themeDir === "string" && args.themeDir) themeDir = String(args.themeDir)
     opened = true
@@ -118,6 +121,7 @@ Item {
         if (typeof cfg.audioEnabled === "boolean") root.audioEnabled = cfg.audioEnabled
         if (typeof cfg.showLogo === "boolean") root.showLogo = cfg.showLogo
         if (cfg.logoPos && typeof cfg.logoPos === "object") root.logoPos = { offsetX: parseInt(cfg.logoPos.offsetX)||0, offsetY: parseInt(cfg.logoPos.offsetY)||0 }
+        if (cfg.logoSize && typeof cfg.logoSize === "object") root.logoSize = { width: Math.max(80,Math.min(1200,cfg.logoSize.width||260)), height: Math.max(20,Math.min(400,cfg.logoSize.height||61)) }
         if (cfg.previewRes && typeof cfg.previewRes === "object") {
           root.previewRes = { width: parseInt(cfg.previewRes.width)||1920, height: parseInt(cfg.previewRes.height)||1080 }
         }
@@ -166,7 +170,7 @@ Item {
     var poster = previewPoster
     var audio = audioEnabled ? "true" : "false"
     var logo = showLogo ? "true" : "false"
-    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot applySettings " + Util.shellQuote(selectedPath) + " " + Util.shellQuote(poster) + " " + Util.shellQuote(audio) + " " + Util.shellQuote(pos.anchor) + " " + Util.shellQuote(String(pos.offsetX)) + " " + Util.shellQuote(String(pos.offsetY)) + " " + Util.shellQuote(String(fieldSize.width)) + " " + Util.shellQuote(String(fieldSize.height)) + " " + Util.shellQuote(logo) + " " + Util.shellQuote(String(logoPos.offsetX)) + " " + Util.shellQuote(String(logoPos.offsetY)) + " " + Util.shellQuote(String(previewRes.width)) + " " + Util.shellQuote(String(previewRes.height)) + " >/dev/null 2>&1 &"])
+    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot applySettings " + Util.shellQuote(selectedPath) + " " + Util.shellQuote(poster) + " " + Util.shellQuote(audio) + " " + Util.shellQuote(pos.anchor) + " " + Util.shellQuote(String(pos.offsetX)) + " " + Util.shellQuote(String(pos.offsetY)) + " " + Util.shellQuote(String(fieldSize.width)) + " " + Util.shellQuote(String(fieldSize.height)) + " " + Util.shellQuote(logo) + " " + Util.shellQuote(String(logoPos.offsetX)) + " " + Util.shellQuote(String(logoPos.offsetY)) + " " + Util.shellQuote(String(logoSize.width)) + " " + Util.shellQuote(String(logoSize.height)) + " " + Util.shellQuote(String(previewRes.width)) + " " + Util.shellQuote(String(previewRes.height)) + " >/dev/null 2>&1 &"])
     close()
   }
 
@@ -178,6 +182,7 @@ Item {
   }
   function updateShowLogo(v) { showLogo = !!v }
   function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy } }
+  function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) } }
   function updatePreviewRes(w, h) {
     previewRes = { width: Math.max(640, Math.min(7680, w)), height: Math.max(480, Math.min(4320, h)) }
   }
@@ -428,14 +433,16 @@ Item {
             // Logo has its own position and drag target.
             Item {
               id: logoWrap
-              width: 260 * preview.displayScale
-              height: Math.round(260 * 188 / 800) * preview.displayScale
+              width: root.logoSize.width * preview.displayScale
+              height: root.logoSize.height * preview.displayScale
               x: preview.width/2 - width/2 + root.logoPos.offsetX * preview.displayScale
               y: preview.height/2 - height/2 + root.logoPos.offsetY * preview.displayScale
               visible: root.showLogo
               opacity: root.opened ? 1 : 0
               Behavior on x { enabled: !root.logoDragging; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
               Behavior on y { enabled: !root.logoDragging; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+              Behavior on width { enabled: !root.logoResizing; NumberAnimation { duration: 120 } }
+              Behavior on height { enabled: !root.logoResizing; NumberAnimation { duration: 120 } }
 
               Image {
                 anchors.fill: parent
@@ -446,6 +453,8 @@ Item {
               }
               MouseArea {
                 anchors.fill: parent
+                anchors.rightMargin: 14
+                anchors.bottomMargin: 14
                 drag.target: logoWrap
                 drag.axis: Drag.XAndYAxis
                 drag.minimumX: 4
@@ -458,6 +467,25 @@ Item {
                 onReleased: {
                   root.logoDragging = false
                   root.updateLogoPos(Math.round((logoWrap.x + logoWrap.width/2 - preview.width/2) / preview.displayScale), Math.round((logoWrap.y + logoWrap.height/2 - preview.height/2) / preview.displayScale))
+                }
+              }
+              Rectangle {
+                width: 16; height: 16; radius: 4
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                color: Util.alpha(Color.accent, root.logoResizing ? 0.95 : 0.75)
+                border.color: Color.background
+                border.width: 1
+                Text { anchors.centerIn: parent; text: "⤡"; color: Color.background; font.pixelSize: 9 }
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.SizeFDiagCursor
+                  onPressed: root.logoResizing = true
+                  onReleased: root.logoResizing = false
+                  onPositionChanged: function(mouse) {
+                    if (!root.logoResizing) return
+                    root.updateLogoSize(root.logoSize.width + (mouse.x - width/2) / preview.displayScale, root.logoSize.height + (mouse.y - height/2) / preview.displayScale)
+                  }
                 }
               }
             }
@@ -652,6 +680,34 @@ Item {
                 }
                 MouseArea { anchors.fill: parent; onClicked: root.updateShowLogo(!root.showLogo) }
               }
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 6
+              Text { text: "Logo size"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+              Item { Layout.fillWidth: true }
+              Text { text: "W"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.55 }
+              Rectangle {
+                width: 86; height: 24; radius: 6
+                color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                RowLayout { anchors.fill: parent; spacing: 0
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width-20, root.logoSize.height) } }
+                  Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(Math.round(root.logoSize.width)); color: Color.foreground; font.pixelSize: 10 }
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width+20, root.logoSize.height) } }
+                }
+              }
+              Text { text: "H"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.55 }
+              Rectangle {
+                width: 78; height: 24; radius: 6
+                color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                RowLayout { anchors.fill: parent; spacing: 0
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width, root.logoSize.height-5) } }
+                  Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(Math.round(root.logoSize.height)); color: Color.foreground; font.pixelSize: 10 }
+                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width, root.logoSize.height+5) } }
+                }
+              }
+              Text { text: "corner ⤡"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
             }
 
             // resolution / scale - laptop vs desktop preview

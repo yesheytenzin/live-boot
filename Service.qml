@@ -19,6 +19,7 @@ Item {
   property bool audioEnabled: false
   property bool showLogo: true
   property var logoPos: ({ offsetX: 0, offsetY: -70 })
+  property var logoSize: ({ width: 260, height: 61 })
   property var previewRes: ({ width: 1920, height: 1080 })
   property var fieldSize: ({ width: 340, height: 56 })
 
@@ -34,6 +35,7 @@ Item {
       if (typeof cfg.showLogo === "boolean") showLogo = cfg.showLogo
       if (cfg.logoPos && typeof cfg.logoPos === "object") logoPos = { offsetX: parseInt(cfg.logoPos.offsetX)||0, offsetY: parseInt(cfg.logoPos.offsetY)||0 }
       else logoPos = { offsetX: parseInt(pos.offsetX)||0, offsetY: (parseInt(pos.offsetY)||0) - 70 }
+      if (cfg.logoSize && typeof cfg.logoSize === "object") logoSize = { width: Math.max(80, Math.min(1200, parseInt(cfg.logoSize.width)||260)), height: Math.max(20, Math.min(400, parseInt(cfg.logoSize.height)||61)) }
       if (cfg.previewRes && typeof cfg.previewRes === "object") previewRes = { width: parseInt(cfg.previewRes.width)||1920, height: parseInt(cfg.previewRes.height)||1080 }
       if (cfg.fieldSize && typeof cfg.fieldSize === "object") fieldSize = { width: Math.max(200, Math.min(1600, parseInt(cfg.fieldSize.width)||340)), height: Math.max(40, Math.min(320, parseInt(cfg.fieldSize.height)||56)) }
       else if (cfg.size && typeof cfg.size === "object") fieldSize = { width: Math.max(200, Math.min(1600, parseInt(cfg.size.width)||340)), height: Math.max(40, Math.min(320, parseInt(cfg.size.height)||56)) }
@@ -43,7 +45,7 @@ Item {
   }
 
   function saveConfig() {
-    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, previewRes: previewRes }
+    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, previewRes: previewRes }
     configFile.setText(JSON.stringify(payload, null, 2) + "\n")
   }
 
@@ -104,7 +106,7 @@ Item {
     target: "live-boot"
     function openSelector(): void { root.openSelector() }
     function sync(): void { root.syncSddm() }
-    function applySettings(path: string, poster: string, audio: string, anchor: string, offsetX: string, offsetY: string, fieldWidth: string, fieldHeight: string, logoEnabled: string, logoOffsetX: string, logoOffsetY: string, screenWidth: string, screenHeight: string): void {
+    function applySettings(path: string, poster: string, audio: string, anchor: string, offsetX: string, offsetY: string, fieldWidth: string, fieldHeight: string, logoEnabled: string, logoOffsetX: string, logoOffsetY: string, logoWidth: string, logoHeight: string, screenWidth: string, screenHeight: string): void {
       root.videoPath = String(path || "").trim()
       root.posterPath = String(poster || "").trim()
       root.audioEnabled = String(audio) === "true" || String(audio) === "1"
@@ -112,6 +114,7 @@ Item {
       root.fieldSize = { width: Math.max(200, Math.min(1600, parseInt(fieldWidth,10)||340)), height: Math.max(40, Math.min(320, parseInt(fieldHeight,10)||56)) }
       root.showLogo = String(logoEnabled) === "true" || String(logoEnabled) === "1"
       root.logoPos = { offsetX: parseInt(logoOffsetX,10)||0, offsetY: parseInt(logoOffsetY,10)||0 }
+      root.logoSize = { width: Math.max(80, Math.min(1200, parseInt(logoWidth,10)||260)), height: Math.max(20, Math.min(400, parseInt(logoHeight,10)||61)) }
       root.previewRes = { width: Math.max(640, Math.min(7680, parseInt(screenWidth,10)||1920)), height: Math.max(480, Math.min(4320, parseInt(screenHeight,10)||1080)) }
       root.saveConfig()
       root.syncSddm()
@@ -147,6 +150,11 @@ Item {
       root.saveConfig()
       root.syncSddm()
     }
+    function setLogoSize(width: string, height: string): void {
+      root.logoSize = { width: Math.max(80, Math.min(1200, parseInt(width,10)||260)), height: Math.max(20, Math.min(400, parseInt(height,10)||61)) }
+      root.saveConfig()
+      root.syncSddm()
+    }
     function setPreviewRes(width: string, height: string): void {
       var w = parseInt(width,10) || 1920
       var h = parseInt(height,10) || 1080
@@ -169,7 +177,7 @@ Item {
       root.syncSddm()
     }
     function status(): string {
-      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled, fieldSize: root.fieldSize, showLogo: root.showLogo, logoPos: root.logoPos, previewRes: root.previewRes })
+      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled, fieldSize: root.fieldSize, showLogo: root.showLogo, logoPos: root.logoPos, logoSize: root.logoSize, previewRes: root.previewRes })
     }
     function stop(): void {
       root.videoPath = ""
