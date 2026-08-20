@@ -183,6 +183,10 @@ Item {
   function updateShowLogo(v) { showLogo = !!v }
   function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy } }
   function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) } }
+  function resetDefaultPositions() {
+    updateLogoPos(0, -70)
+    updatePos("center", 0, 0)
+  }
   function updatePreviewRes(w, h) {
     previewRes = { width: Math.max(640, Math.min(7680, w)), height: Math.max(480, Math.min(4320, h)) }
   }
@@ -377,7 +381,19 @@ Item {
           Layout.fillHeight: true
           spacing: Style.spacing.rowGap
 
-          Text { text: "Preview — video → password"; color: Color.foreground; font.pixelSize: Style.font.subtitle; font.weight: Font.DemiBold }
+          RowLayout {
+            Layout.fillWidth: true
+            Text { text: "Preview — video → password"; color: Color.foreground; font.pixelSize: Style.font.subtitle; font.weight: Font.DemiBold }
+            Item { Layout.fillWidth: true }
+            Rectangle {
+              width: 112; height: 26; radius: 7
+              color: Util.alpha(Color.background,0.55)
+              border.color: Color.imagePicker.unselectedBorder
+              border.width: 1
+              Text { anchors.centerIn: parent; text: "Default positions"; color: Color.foreground; font.pixelSize: Style.font.caption }
+              MouseArea { anchors.fill: parent; onClicked: root.resetDefaultPositions() }
+            }
+          }
 
           // Aspect-correct screen simulation. All SDDM pixels are converted
           // through preview.displayScale, including drag and resize values.
@@ -659,9 +675,9 @@ Item {
                 font.pixelSize: Style.font.caption
               }
               Rectangle {
-                width: 30; height: 24; radius: 6
+                width: 60; height: 24; radius: 6
                 color: Util.alpha(Color.background,0.6); border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                Text { anchors.centerIn: parent; text: "↺"; color: Color.foreground; font.pixelSize: 11 }
+                Text { anchors.centerIn: parent; text: "Default"; color: Color.foreground; font.pixelSize: Style.font.caption }
                 MouseArea { anchors.fill: parent; onClicked: root.updateLogoPos(0,-70) }
               }
               Rectangle {
@@ -763,9 +779,9 @@ Item {
               Item { Layout.fillWidth: true }
               Text { text: root.pos.anchor==="custom" ? "Custom  " + root.pos.offsetX + "," + root.pos.offsetY : root.pos.anchor; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
               Rectangle {
-                width: 44; height: 22; radius: 11
+                width: 60; height: 24; radius: 7
                 color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                Text { anchors.centerIn: parent; text: "↺"; color: Color.foreground; font.pixelSize: 11 }
+                Text { anchors.centerIn: parent; text: "Default"; color: Color.foreground; font.pixelSize: Style.font.caption }
                 MouseArea { anchors.fill: parent; onClicked: root.updatePos("center",0,0) }
               }
             }
