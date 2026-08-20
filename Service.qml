@@ -130,9 +130,9 @@ Item {
     function setPreviewRes(width: string, height: string): void {
       var w = parseInt(width,10) || 1920
       var h = parseInt(height,10) || 1080
-      // clamp to sane ranges
-      w = Math.max(800, Math.min(7680, w))
-      h = Math.max(600, Math.min(4320, h))
+      // 640x480 is SDDM's test-mode coordinate space.
+      w = Math.max(640, Math.min(7680, w))
+      h = Math.max(480, Math.min(4320, h))
       root.previewRes = { width: w, height: h }
       root.saveConfig()
     }

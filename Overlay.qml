@@ -28,8 +28,6 @@ Item {
   property bool showLogo: true
   property var previewRes: ({ width: 1920, height: 1080 })
   property string themeDir: "/usr/share/sddm/themes/omarchy"
-  // preview scale simulates HiDPI/laptop scaling; 1.0 = native previewRes
-  property real previewScale: 1.0
   property bool previewHasAudio: false
   property string previewVideo: ""
   property string previewPoster: ""
@@ -85,8 +83,6 @@ Item {
     if (typeof args.showLogo === "boolean") showLogo = args.showLogo
     if (args.previewRes && typeof args.previewRes === "object") previewRes = { width: parseInt(args.previewRes.width)||1920, height: parseInt(args.previewRes.height)||1080 }
     if (typeof args.themeDir === "string" && args.themeDir) themeDir = String(args.themeDir)
-    // derive previewScale from previewRes width vs 1920 baseline for WYSIWYG
-    previewScale = Math.max(0.6, Math.min(2.0, previewRes.width / 1920))
     opened = true
     videoReady = false
     previewHasAudio = false
@@ -120,7 +116,6 @@ Item {
         if (typeof cfg.showLogo === "boolean") root.showLogo = cfg.showLogo
         if (cfg.previewRes && typeof cfg.previewRes === "object") {
           root.previewRes = { width: parseInt(cfg.previewRes.width)||1920, height: parseInt(cfg.previewRes.height)||1080 }
-          root.previewScale = Math.max(0.6, Math.min(2.0, root.previewRes.width / 1920))
         }
         if (cfg.video && !root.previewVideo) {
           root.previewVideo = String(cfg.video)
@@ -180,8 +175,7 @@ Item {
   }
   function updateShowLogo(v) { showLogo = !!v }
   function updatePreviewRes(w, h) {
-    previewRes = { width: Math.max(800, Math.min(7680, w)), height: Math.max(600, Math.min(4320, h)) }
-    previewScale = Math.max(0.6, Math.min(2.0, previewRes.width / 1920))
+    previewRes = { width: Math.max(640, Math.min(7680, w)), height: Math.max(480, Math.min(4320, h)) }
   }
 
   // position helpers for preview
@@ -213,7 +207,7 @@ Item {
     Rectangle {
       id: card
       width: Math.min(parent.width - 40, 1100)
-      height: Math.min(parent.height - 40, 680)
+      height: Math.min(parent.height - 40, 760)
       anchors.centerIn: parent
       radius: Style.cornerRadius
       color: Color.background
@@ -376,16 +370,25 @@ Item {
 
           Text { text: "Preview — video → password"; color: Color.foreground; font.pixelSize: Style.font.subtitle; font.weight: Font.DemiBold }
 
-          // preview area - simulates SDDM
-          Rectangle {
-            id: preview
+          // Aspect-correct screen simulation. All SDDM pixels are converted
+          // through preview.displayScale, including drag and resize values.
+          Item {
+            id: previewFrame
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            radius: Style.cornerRadius
-            color: "#0e0e14"
-            clip: true
-            border.color: Color.imagePicker.unselectedBorder
-            border.width: 1
+            Layout.preferredHeight: 260
+
+            Rectangle {
+              id: preview
+              readonly property real aspect: root.previewRes.width / root.previewRes.height
+              readonly property real displayScale: width / root.previewRes.width
+              width: Math.min(parent.width, parent.height * aspect)
+              height: width / aspect
+              anchors.centerIn: parent
+              radius: Style.cornerRadius
+              color: "#0e0e14"
+              clip: true
+              border.color: Color.imagePicker.unselectedBorder
+              border.width: 1
 
             // video
             MediaPlayer {
@@ -421,19 +424,19 @@ Item {
             // password overlay - positionable + resizable
             Item {
               id: passWrap
-              width: root.fieldSize.width
-              height: root.fieldSize.height
-              // scale-to-fit: mirrors Main.qml.tpl passWrap.s so preview matches boot screen
-              readonly property real s: Math.min(1.0, width / 320.0, height / 140.0)
+              width: root.fieldSize.width * preview.displayScale
+              height: root.fieldSize.height * preview.displayScale
+              // Main.qml content scale, converted from SDDM pixels to preview pixels.
+              readonly property real s: Math.min(1.0, root.fieldSize.width / 320.0, root.fieldSize.height / 140.0) * preview.displayScale
               // anchor logic — custom uses free x/y, others use anchors (x/y ignored)
               anchors.centerIn: root.pos.anchor === "center" ? parent : undefined
               anchors.horizontalCenter: root.pos.anchor !== "center" && root.pos.anchor !== "custom" ? parent.horizontalCenter : undefined
               anchors.top: root.pos.anchor.indexOf("top") !== -1 ? parent.top : undefined
               anchors.bottom: root.pos.anchor.indexOf("bottom") !== -1 ? parent.bottom : undefined
-              anchors.topMargin: root.pos.anchor.indexOf("top") !== -1 ? 24 + root.pos.offsetY : 0
-              anchors.bottomMargin: root.pos.anchor.indexOf("bottom") !== -1 ? 24 - root.pos.offsetY : 0
-              x: root.pos.anchor === "custom" ? parent.width/2 - width/2 + root.pos.offsetX : 0
-              y: root.pos.anchor === "custom" ? parent.height/2 - height/2 + root.pos.offsetY : 0
+              anchors.topMargin: root.pos.anchor.indexOf("top") !== -1 ? (40 + root.pos.offsetY) * preview.displayScale : 0
+              anchors.bottomMargin: root.pos.anchor.indexOf("bottom") !== -1 ? (40 - root.pos.offsetY) * preview.displayScale : 0
+              x: root.pos.anchor === "custom" ? parent.width/2 - width/2 + root.pos.offsetX * preview.displayScale : 0
+              y: root.pos.anchor === "custom" ? parent.height/2 - height/2 + root.pos.offsetY * preview.displayScale : 0
               opacity: root.videoReady ? 1 : 0
               Behavior on opacity { NumberAnimation{duration:600}}
               Behavior on x { enabled: !root.dragging && !root.resizing; NumberAnimation{duration:120; easing.type: Easing.OutCubic} }
@@ -441,10 +444,10 @@ Item {
               Behavior on width { enabled: !root.resizing; NumberAnimation{duration:140} }
               Behavior on height { enabled: !root.resizing; NumberAnimation{duration:140} }
 
-              // WYSIWYG content - mirrors SDDM Main.qml.tpl exactly, scaled per preview resolution (larger screens → smaller field)
+              // WYSIWYG content - mirrors SDDM Main.qml.tpl exactly.
               Column {
                 anchors.centerIn: parent
-                scale: passWrap.s * Math.min(1.0, 1920 / root.previewRes.width)
+                scale: passWrap.s
                 spacing: 18
                 Image {
                   id: logoPreview
@@ -490,15 +493,6 @@ Item {
                   }
                 }
               }
-              // subtle outline so the field bounds are visible even when entry.png loads
-              Rectangle {
-                anchors.fill: parent
-                radius: Style.cornerRadius
-                color: "transparent"
-                border.color: Util.alpha(Color.accent, 0.28)
-                border.width: 1
-              }
-
               MouseArea {
                 id: dragArea
                 anchors.fill: parent
@@ -506,10 +500,10 @@ Item {
                 anchors.bottomMargin: 16
                 drag.target: root.pos.anchor === "custom" ? passWrap : undefined
                 drag.axis: Drag.XAndYAxis
-                drag.minimumX: 8
-                drag.maximumX: preview.width - passWrap.width - 8
-                drag.minimumY: 8
-                drag.maximumY: preview.height - passWrap.height - 8
+                drag.minimumX: 4
+                drag.maximumX: preview.width - passWrap.width - 4
+                drag.minimumY: 4
+                drag.maximumY: preview.height - passWrap.height - 4
                 drag.smoothed: false
                 cursorShape: root.pos.anchor==="custom" ? Qt.SizeAllCursor : Qt.ArrowCursor
                 enabled: root.pos.anchor==="custom"
@@ -519,7 +513,7 @@ Item {
                   if (root.pos.anchor === "custom") {
                     var cx = preview.width/2
                     var cy = preview.height/2
-                    root.updatePos("custom", Math.round(passWrap.x + passWrap.width/2 - cx), Math.round(passWrap.y + passWrap.height/2 - cy))
+                    root.updatePos("custom", Math.round((passWrap.x + passWrap.width/2 - cx) / preview.displayScale), Math.round((passWrap.y + passWrap.height/2 - cy) / preview.displayScale))
                   }
                 }
                 // no live pos updates — avoids stutter; only final pos on release
@@ -546,8 +540,8 @@ Item {
                   onReleased: root.resizing = false
                   onPositionChanged: function(mouse) {
                     if (!root.resizing) return
-                    var newW = Math.max(200, Math.min(600, passWrap.width + mouse.x - width/2))
-                    var newH = Math.max(40, Math.min(120, passWrap.height + mouse.y - height/2))
+                    var newW = Math.max(200, Math.min(600, root.fieldSize.width + (mouse.x - width/2) / preview.displayScale))
+                    var newH = Math.max(40, Math.min(120, root.fieldSize.height + (mouse.y - height/2) / preview.displayScale))
                     root.updateFieldSize(Math.round(newW), Math.round(newH))
                   }
                   // also support drag
@@ -590,6 +584,7 @@ Item {
               border.width: 1
               Text { id: hintText; anchors.centerIn: parent; text: "Drag the password box to place"; color: Color.foreground; font.pixelSize: 10; opacity: 0.85 }
             }
+          }
           }
 
           // --- display: logo + scale/resolution ---
@@ -634,13 +629,14 @@ Item {
                 Layout.fillWidth: true
                 Text { text: "Preview scale"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
                 Item { Layout.fillWidth: true }
-                Text { text: previewRes.width + "×" + previewRes.height + " · field " + Math.round(Math.min(1.0, 1920 / previewRes.width)*100) + "%"; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
+                Text { text: previewRes.width + "×" + previewRes.height + " · preview " + Math.round(preview.displayScale*100) + "%"; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
               }
               RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
                 Repeater {
                   model: [
+                    { label: "Test", sub: "640×480", w: 640, h: 480 },
                     { label: "HD", sub: "1366×768", w: 1366, h: 768 },
                     { label: "FHD", sub: "1920×1080", w: 1920, h: 1080 },
                     { label: "QHD", sub: "2560×1440", w: 2560, h: 1440 },
@@ -663,7 +659,7 @@ Item {
                   }
                 }
               }
-              Text { text: "Preview is WYSIWYG — video, scrim, logo, and password field exactly as SDDM will show (scaled to fit)."; color: Color.foreground; opacity: 0.42; font.pixelSize: 9; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+              Text { text: "Use Test 640×480 to match sddm --test-mode exactly; choose your panel resolution for real boot."; color: Color.foreground; opacity: 0.42; font.pixelSize: 9; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             }
           }
 
