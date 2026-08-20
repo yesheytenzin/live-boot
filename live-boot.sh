@@ -8,11 +8,13 @@ readonly video_state="$state_dir/video"
 readonly poster_state="$state_dir/poster"
 readonly config_path="$state_dir/config.json"
 readonly expected_state="$state_dir/expected"
-readonly sddm_theme_dir="/usr/share/sddm/themes/omarchy"
+readonly stock_theme_dir="/usr/share/sddm/themes/omarchy"
+readonly sddm_theme_dir="/usr/share/sddm/themes/live-boot"
 readonly sddm_video="$sddm_theme_dir/background.mp4"
 readonly sddm_poster="$sddm_theme_dir/background.jpg"
 readonly sddm_main="$sddm_theme_dir/Main.qml"
-readonly sddm_main_backup="$sddm_theme_dir/Main.qml.live-boot.bak"
+readonly theme_override="/etc/sddm.conf.d/90-live-boot-theme.conf"
+readonly legacy_main_backup="$stock_theme_dir/Main.qml.live-boot.bak"
 readonly login_setup="$HOME/.config/omarchy/plugins/$plugin_id/setup-sddm-login.sh"
 
 mkdir -p "$state_dir" "$cache_dir"
@@ -122,9 +124,14 @@ sync_sddm() {
   read -r anchor ox oy <<<"$(load_pos)"
 
   if [[ -z $video || ! -f $video ]]; then
-    # clear SDDM video -> restore theme
-    if [[ -f $sddm_main_backup ]]; then
-      run_privileged bash -c "rm -f '$sddm_video' '$sddm_poster'; cp '$sddm_main_backup' '$sddm_main'" || return 1
+    if [[ -d $sddm_theme_dir || -f $theme_override || -f $legacy_main_backup ]]; then
+      run_privileged bash -c '
+        set -e
+        rm -rf "$1"
+        rm -f "$2"
+        if [[ -f $3 ]]; then cp "$3" "$4/Main.qml"; fi
+        rm -f "$4/background.mp4" "$4/background.jpg" "$3"
+      ' live-boot "$sddm_theme_dir" "$theme_override" "$legacy_main_backup" "$stock_theme_dir" || return 1
     fi
     return 0
   fi
@@ -153,29 +160,41 @@ sync_sddm() {
   if [[ -f $tpl ]]; then
     sed -e "s/{{anchor}}/$anchor/g" -e "s/{{offsetX}}/$ox/g" -e "s/{{offsetY}}/$oy/g" -e "s/{{audioMuted}}/$audioMuted/g" -e "s/{{audioEnabled}}/$audioEnabled/g" -e "s/{{showLogo}}/$showLogo/g" -e "s/{{logoOffsetX}}/$logoX/g" -e "s/{{logoOffsetY}}/$logoY/g" -e "s/{{logoWidth}}/$logoW/g" -e "s/{{logoHeight}}/$logoH/g" -e "s/{{fieldWidth}}/$fieldW/g" -e "s/{{fieldHeight}}/$fieldH/g" -e "s/{{revealMode}}/$revealMode/g" -e "s/{{transitionDuration}}/$transitionDuration/g" -e "s/{{passwordDelay}}/$passwordDelay/g" "$tpl" >"$tmp_main"
   else
-    cp -f "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "/usr/share/omarchy/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "$sddm_main" "$tmp_main"
+    cp -f "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "/usr/share/omarchy/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "$stock_theme_dir/Main.qml" "$tmp_main"
   fi
 
-  # Install the theme and disable autologin under one explicit authorization.
+  # Install an update-safe custom theme and disable autologin in one authorization.
   if ! run_privileged bash -c '
     set -e
+    mkdir -p "$(dirname "$2")"
+    chmod 700 "$(dirname "$2")"
     if [[ -f $1 ]]; then
-      [[ ! -e $2 && ! -e $3 ]]
+      [[ ! -e $2 ]]
       mv "$1" "$2"
+    elif [[ -f $3 ]]; then
+      if [[ -e $2 ]]; then rm -f "$3"; else mv "$3" "$2"; fi
+    elif [[ -f $4 ]]; then
+      if [[ -e $2 ]]; then rm -f "$4"; else mv "$4" "$2"; fi
     fi
-    if [[ ! -f $5 && -f $4 ]]; then cp "$4" "$5"; fi
-    cp "$6" "$7"
-    cp "$8" "$9"
-    cp "${10}" "${11}"
-    chmod 644 "$7" "$9" "${11}"
+    if [[ -f $2 ]]; then chmod 644 "$2"; fi
+    if [[ -f $8 ]]; then cp "$8" "$5/Main.qml"; fi
+    rm -f "$5/background.mp4" "$5/background.jpg" "$8"
+    rm -rf "$6"
+    mkdir -p "$6"
+    cp -a "$5/." "$6/"
+    cp "$9" "$6/background.mp4"
+    cp "${10}" "$6/background.jpg"
+    cp "${11}" "$6/Main.qml"
+    chmod 644 "$6/background.mp4" "$6/background.jpg" "$6/Main.qml"
+    printf "[Theme]\nCurrent=live-boot\n" >"$7"
+    chmod 644 "$7"
   ' live-boot \
     /etc/sddm.conf.d/autologin.conf \
+    /var/lib/live-boot/sddm-autologin.conf \
     /etc/sddm.conf.d/autologin.conf.live-boot-disabled \
     /etc/sddm.conf.d/autologin.conf.disabled \
-    "$sddm_main" "$sddm_main_backup" \
-    "$tmp_video_dest" "$sddm_video" \
-    "$tmp_poster_dest" "$sddm_poster" \
-    "$tmp_main" "$sddm_main"; then
+    "$stock_theme_dir" "$sddm_theme_dir" "$theme_override" "$legacy_main_backup" \
+    "$tmp_video_dest" "$tmp_poster_dest" "$tmp_main"; then
     rm -f "$tmp_main" "$tmp_poster_dest" "$tmp_video_dest"
     echo "live-boot: SDDM installation failed" >&2
     return 1
@@ -225,15 +244,11 @@ unwire_menu_override() {
 uninstall_plugin_state() {
   unwire_menu_override
   clear_boot
-  # restore SDDM if backup exists
-  if [[ -f $sddm_main_backup ]]; then
-    run_privileged bash -c "cp '$sddm_main_backup' '$sddm_main'; rm -f '$sddm_video' '$sddm_poster' '$sddm_main_backup'" || return 1
-  fi
   rm -rf "$state_dir" "$cache_dir"
 }
 remove_plugin() {
   uninstall_plugin_state
-  if [[ -f $sddm_main_backup || -f $sddm_video || -f /etc/sddm.conf.d/autologin.conf.live-boot-disabled || -f /etc/sddm.conf.d/autologin.conf.disabled ]]; then
+  if [[ -d $sddm_theme_dir || -f $theme_override || -f /var/lib/live-boot/sddm-autologin.conf || -f /etc/sddm.conf.d/autologin.conf.live-boot-disabled || -f /etc/sddm.conf.d/autologin.conf.disabled ]]; then
     echo "live-boot: cleanup did not complete; plugin removal aborted" >&2
     return 1
   fi
@@ -309,7 +324,7 @@ if [[ ! -s $rows_file ]]; then
 fi
 
 rows_b64=$(base64 -w 0 <"$rows_file")
-payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"sizesCustomized":%s,"positionsCustomized":%s,"previewRes":%s,"detectedRes":%s,"themeDir":"%s","audioEnabled":%s,"revealMode":"%s","transitionDuration":%s,"passwordDelay":%s,"linkPasswordToLogo":%s,"passwordGap":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_sizes_customized" "$current_positions_customized" "$current_res_json" "$detected_res_json" "$sddm_theme_dir" "$current_audio" "$current_reveal_mode" "$current_transition_duration" "$current_password_delay" "$current_link_password" "$current_password_gap")
+payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"sizesCustomized":%s,"positionsCustomized":%s,"previewRes":%s,"detectedRes":%s,"themeDir":"%s","audioEnabled":%s,"revealMode":"%s","transitionDuration":%s,"passwordDelay":%s,"linkPasswordToLogo":%s,"passwordGap":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_sizes_customized" "$current_positions_customized" "$current_res_json" "$detected_res_json" "$stock_theme_dir" "$current_audio" "$current_reveal_mode" "$current_transition_duration" "$current_password_delay" "$current_link_password" "$current_password_gap")
 
 # summon overlay; keepLoaded overlay stays mounted
 if ! omarchy-shell shell summon live-boot "$payload" >/dev/null 2>&1; then

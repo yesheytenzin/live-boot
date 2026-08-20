@@ -19,7 +19,7 @@ Next reboot either loops video behind the login or plays it once before revealin
 
 ## Features
 
-- Boot-only: patches `/usr/share/sddm/themes/omarchy/Main.qml` via `pkexec`/`sudo` (template `assets/Main.qml.tpl` with `{{anchor}}` `{{offsetX}}` `{{offsetY}}` `{{audioEnabled}}`)
+- Boot-only: installs the update-safe `/usr/share/sddm/themes/live-boot` theme via `pkexec`/`sudo` (template `assets/Main.qml.tpl` with `{{anchor}}` `{{offsetX}}` `{{offsetY}}` `{{audioEnabled}}`)
 - Supports MP4, MKV, WebM, MOV, M4V
 - Limits boot playback to 10 seconds; longer sources are cached as trimmed boot-safe MP4 files
 - Generates thumbnails with existing `ffmpeg`, detects audio with `ffprobe`
@@ -79,15 +79,15 @@ Files:
 - `manifest.json` — `service` + `overlay` (`keepLoaded:true`)
 - `Service.qml` — watches config, IPC `live-boot` (`setVideoWithAudio`/`setAudio`/`setPosition`)
 - `Overlay.qml` — grid + preview + 9-grid/custom position + audio toggle (auto-detect via `ffprobe`)
-- `live-boot.sh` — discovery, thumbs, `has_audio_track()`, `pkexec cp` to `/usr/share/sddm/themes/omarchy/`; `setup-sddm-login.sh` safely disables/restores SDDM autologin
+- `live-boot.sh` — discovery, thumbs, `has_audio_track()`, `pkexec cp` to `/usr/share/sddm/themes/live-boot/`; `setup-sddm-login.sh` safely disables/restores SDDM autologin
 - `assets/Main.qml.tpl` — SDDM template with `MediaPlayer + AudioOutput { muted: !audioEnabled }`
 
 ## SDDM notes
 
-SDDM runs as user `sddm`, so videos are copied to `/usr/share/sddm/themes/omarchy/background.mp4` (`644`). Position + audio are baked into `Main.qml` at sync. Test without reboot:
+SDDM runs as user `sddm`, so videos are copied to `/usr/share/sddm/themes/live-boot/background.mp4` (`644`). Position + audio are baked into `Main.qml` at sync. Test without reboot:
 
 ```bash
-sddm --test-mode --theme /usr/share/sddm/themes/omarchy
+sddm --test-mode --theme /usr/share/sddm/themes/live-boot
 ```
 
 If audio doesn't play at boot, check `qt6-multimedia-gstreamer` and `gst-plugin-pipewire`.
