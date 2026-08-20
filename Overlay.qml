@@ -23,6 +23,8 @@ Item {
   property string filterText: ""
   property bool videoReady: false
   property var pos: ({ anchor: "center", offsetX: 0, offsetY: 0 })
+  property bool audioEnabled: false
+  property bool previewHasAudio: false
   property string previewVideo: ""
   property string previewPoster: ""
   property bool dragging: false
@@ -65,12 +67,18 @@ Item {
       previewVideo = rows[0].filePath
       previewPoster = rows[0].thumbnailPath
     }
-    // load pos from args or file
+    // load pos/audio from args or file
     if (args.pos && typeof args.pos === "object") pos = args.pos
     else loadPos()
+    if (typeof args.audioEnabled === "boolean") audioEnabled = args.audioEnabled
+    else if (typeof args.audio === "boolean") audioEnabled = args.audio
     opened = true
     videoReady = false
-    if (previewVideo) previewPlayer.play()
+    previewHasAudio = false
+    if (previewVideo) {
+      previewPlayer.play()
+      audioProbeProc.running = true
+    }
   }
 
   function close() {
@@ -91,11 +99,30 @@ Item {
       try {
         var cfg = JSON.parse(String(loadPosOut.text || "{}"))
         if (cfg.pos) root.pos = cfg.pos
+        if (typeof cfg.audioEnabled === "boolean") root.audioEnabled = cfg.audioEnabled
         if (cfg.video && !root.previewVideo) {
           root.previewVideo = String(cfg.video)
           root.previewPoster = String(cfg.poster || "")
+          audioProbeProc.running = true
         }
       } catch (e) {}
+    }
+  }
+
+  // detect if previewVideo has an audio stream
+  Process {
+    id: audioProbeProc
+    command: ["bash", "-c", "ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 " + Util.shellQuote(root.previewVideo) + " 2>/dev/null | head -n 1"]
+    stdout: StdioCollector { id: audioProbeOut; waitForEnd: true }
+    onExited: {
+      var has = String(audioProbeOut.text || "").trim().length > 0
+      root.previewHasAudio = has
+      // auto-enable audio if video has audio (user wants sound when available)
+      if (has && !root.audioEnabled) {
+        root.audioEnabled = true
+      } else if (!has && root.audioEnabled) {
+        root.audioEnabled = false
+      }
     }
   }
 
@@ -106,19 +133,22 @@ Item {
     previewVideo = rows[idx].filePath
     previewPoster = rows[idx].thumbnailPath
     videoReady = false
+    previewHasAudio = false
     previewPlayer.stop()
     previewPlayer.source = fileUrl(previewVideo)
     previewPlayer.play()
+    audioProbeProc.running = true
   }
 
   function applySelected() {
     if (!selectedPath) return
     // poster is thumbnail for now; script will regenerate best frame
     var poster = previewPoster
-    // call service IPC via shell
-    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot setVideo " + Util.shellQuote(selectedPath) + " " + Util.shellQuote(poster) + " >/dev/null 2>&1 &"])
-    // also persist pos immediately
-    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot setPosition " + Util.shellQuote(pos.anchor) + " " + Util.shellQuote(String(pos.offsetX)) + " " + Util.shellQuote(String(pos.offsetY)) + " >/dev/null 2>&1 &"])
+    var audio = audioEnabled ? "true" : "false"
+    // call service IPC via shell - include audio flag
+    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot setVideoWithAudio " + Util.shellQuote(selectedPath) + " " + Util.shellQuote(poster) + " " + Util.shellQuote(audio) + " >/dev/null 2>&1 &"])
+    // also persist pos immediately (pos IPC also syncs, but setVideoWithAudio already syncs)
+    Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot setPosition " + Util.shellQuote(pos.anchor) + " " + Util.shellQuote(String(pos.offsetX)) + " " + Util.shellQuote(String(pos.offsetY)) + " >/dev/null 2>&1; omarchy-shell -q live-boot setAudio " + Util.shellQuote(audio) + " >/dev/null 2>&1 &"])
     close()
   }
 
@@ -333,7 +363,7 @@ Item {
             MediaPlayer {
               id: previewPlayer
               videoOutput: previewOut
-              audioOutput: AudioOutput { muted: true }
+              audioOutput: AudioOutput { id: previewAudio; muted: !root.audioEnabled; volume: 0.85 }
               loops: MediaPlayer.Infinite
               onErrorOccurred: console.warn("preview error", errorString)
             }
@@ -492,6 +522,56 @@ Item {
               Text { anchors.centerIn: parent; text: "↺"; color: Color.foreground }
               MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, 0, 0) }
             }
+          }
+
+          // audio toggle
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Text { text: "Boot sound"; color: Color.foreground; font.pixelSize: Style.font.bodySmall; opacity: 0.7 }
+            Item { Layout.fillWidth: true }
+            Text {
+              text: root.previewHasAudio ? (root.audioEnabled ? "On" : "Off") : "No audio track"
+              color: root.previewHasAudio ? Color.foreground : Color.foreground
+              opacity: root.previewHasAudio ? 0.9 : 0.4
+              font.pixelSize: Style.font.caption
+            }
+            Rectangle {
+              width: 52; height: 26; radius: 13
+              color: root.audioEnabled && root.previewHasAudio ? Color.accent : Util.alpha(Color.background,0.6)
+              border.color: Color.imagePicker.unselectedBorder
+              border.width: 1
+              opacity: root.previewHasAudio ? 1 : 0.45
+              Rectangle {
+                width: 18; height: 18; radius: 9
+                color: Color.background
+                border.color: Color.imagePicker.unselectedBorder
+                border.width: 1
+                anchors.verticalCenter: parent.verticalCenter
+                x: root.audioEnabled ? parent.width - width - 4 : 4
+                Behavior on x { NumberAnimation{duration:150}}
+              }
+              MouseArea {
+                anchors.fill: parent
+                enabled: root.previewHasAudio
+                onClicked: root.audioEnabled = !root.audioEnabled
+              }
+            }
+            Text {
+              text: "🔊"
+              color: Color.foreground
+              opacity: root.audioEnabled && root.previewHasAudio ? 0.9 : 0.3
+              font.pixelSize: Style.font.body
+            }
+          }
+          Text {
+            visible: !root.previewHasAudio && root.previewVideo !== ""
+            text: "This video has no audio track — sound will stay silent at boot even if enabled."
+            color: Color.foreground
+            opacity: 0.5
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
           }
         }
       }

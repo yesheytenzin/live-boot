@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import SddmComponents 2.0
+import QtMultimedia
 
 Rectangle {
   id: root
@@ -13,6 +14,7 @@ Rectangle {
   property string anchor: "{{anchor}}"
   property int offsetX: {{offsetX}}
   property int offsetY: {{offsetY}}
+  property bool audioEnabled: {{audioEnabled}}
   property int sessionIndex: {
     for (var i = 0; i < sessionModel.rowCount(); i++) {
       var name = (sessionModel.data(sessionModel.index(i, 0), Qt.DisplayRole) || "").toString()
@@ -27,12 +29,11 @@ Rectangle {
     function onLoginSucceeded() { root.loginFailed = false }
   }
 
-  // --- live background ---
-  // video file is copied to theme dir as background.mp4 by live-boot.sh --sync-sddm
-  // poster fallback is background.jpg
+  // --- live background: video + poster fallback ---
   Item {
     anchors.fill: parent
-    // poster fallback (visible until first video frame)
+
+    // poster fallback while video loads
     Image {
       id: poster
       anchors.fill: parent
@@ -41,11 +42,42 @@ Rectangle {
       asynchronous: true
       visible: !root.videoReady
     }
-    // mpv via QtMultimedia would be ideal, but SDDM QtMultimedia may be missing gstreamer
-    // We keep Image fallback as primary; if QtMultimedia available, Video will overlay it.
-    // The template is rendered at install time; for full video support ensure qt6-multimedia is installed.
-    // Placeholder Video - will be active if Multimedia is importable at runtime
-    // If import fails SDDM falls back to poster (acceptable degradation)
+
+    MediaPlayer {
+      id: player
+      source: "background.mp4"
+      videoOutput: videoOut
+      audioOutput: AudioOutput {
+        id: sddmAudio
+        muted: !root.audioEnabled
+        volume: 0.8
+      }
+      loops: MediaPlayer.Infinite
+      onErrorOccurred: function(es, s) { console.warn("live-boot SDDM player error", es, s) }
+    }
+
+    VideoOutput {
+      id: videoOut
+      anchors.fill: parent
+      fillMode: VideoOutput.PreserveAspectCrop
+      visible: root.videoReady
+    }
+
+    Connections {
+      target: videoOut.videoSink
+      function onVideoFrameChanged() { if (!root.videoReady) root.videoReady = true }
+    }
+
+    // if video file missing or no decoder, stay on poster
+    Timer { interval: 1500; running: true; onTriggered: if (!root.videoReady) console.log("live-boot: staying on poster (video not ready)") }
+
+    Component.onCompleted: {
+      // try to play; if QtMultimedia missing, poster stays
+      try { player.play() } catch (e) { console.warn("live-boot player.play failed", e) }
+      // fallback timer to show content even if video never fires frameReady
+      fallbackTimer.restart()
+    }
+    Timer { id: fallbackTimer; interval: 2500; onTriggered: root.videoReady = true }
   }
 
   // dark scrim for legibility
@@ -61,18 +93,15 @@ Rectangle {
     id: passWrap
     width: 420
     height: 120
-    // center default, offsets from live-boot config
     anchors.centerIn: root.anchor === "center" ? parent : undefined
     anchors.horizontalCenter: root.anchor !== "center" && root.anchor !== "custom" ? parent.horizontalCenter : undefined
     anchors.top: root.anchor.indexOf("top") !== -1 ? parent.top : undefined
     anchors.bottom: root.anchor.indexOf("bottom") !== -1 ? parent.bottom : undefined
     anchors.topMargin: root.anchor.indexOf("top") !== -1 ? 40 + root.offsetY : 0
     anchors.bottomMargin: root.anchor.indexOf("bottom") !== -1 ? 40 - root.offsetY : 0
-    // custom uses absolute offsets from center
     x: root.anchor === "custom" ? parent.width/2 - width/2 + root.offsetX : x
     y: root.anchor === "custom" ? parent.height/2 - height/2 + root.offsetY : y
     opacity: 1
-    // fade in after short delay to mimic video->password transition
     Component.onCompleted: { passWrap.opacity = 0; fadeIn.restart() }
     Timer { id: fadeIn; interval: 700; onTriggered: passWrap.opacity = 1 }
     Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
@@ -156,10 +185,6 @@ Rectangle {
       }
     }
   }
-
-  // if Video is available the poster will be replaced - we keep poster as base
-  // simulate videoReady after 400ms for transition
-  Timer { interval: 400; running: true; onTriggered: root.videoReady = true }
 
   Component.onCompleted: password.forceActiveFocus()
 }

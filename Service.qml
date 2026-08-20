@@ -16,6 +16,7 @@ Item {
   property string videoPath: ""
   property string posterPath: ""
   property var pos: ({ anchor: "center", offsetX: 0, offsetY: 0 })
+  property bool audioEnabled: false
 
   function loadConfig() {
     if (!configFile.text()) return
@@ -24,13 +25,15 @@ Item {
       if (cfg.video) videoPath = String(cfg.video)
       if (cfg.poster) posterPath = String(cfg.poster)
       if (cfg.pos && typeof cfg.pos === "object") pos = cfg.pos
+      if (typeof cfg.audioEnabled === "boolean") audioEnabled = cfg.audioEnabled
+      else if (typeof cfg.audio === "boolean") audioEnabled = cfg.audio
     } catch (e) {
       console.warn("live-boot config parse failed", e)
     }
   }
 
   function saveConfig() {
-    var payload = { video: videoPath, poster: posterPath, pos: pos }
+    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled }
     configFile.setText(JSON.stringify(payload, null, 2) + "\n")
   }
 
@@ -105,8 +108,20 @@ Item {
       root.saveConfig()
       root.syncSddm()
     }
+    function setAudio(enabled: string): void {
+      root.audioEnabled = String(enabled) === "true" || String(enabled) === "1"
+      root.saveConfig()
+      root.syncSddm()
+    }
+    function setVideoWithAudio(path: string, poster: string, audio: string): void {
+      root.videoPath = String(path || "").trim()
+      root.posterPath = String(poster || "").trim()
+      if (audio !== undefined) root.audioEnabled = String(audio) === "true" || String(audio) === "1"
+      root.saveConfig()
+      root.syncSddm()
+    }
     function status(): string {
-      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos })
+      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled })
     }
     function stop(): void {
       root.videoPath = ""

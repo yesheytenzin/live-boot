@@ -39,9 +39,13 @@ thumbnail_for() {
   printf '%s' "$thumb"
 }
 
+has_audio_track() {
+  ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$1" 2>/dev/null | grep -q audio
+}
+
 ensure_config() {
   if [[ ! -f $config_path ]]; then
-    printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0}}\n' >"$config_path"
+    printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false}\n' >"$config_path"
   fi
   # migrate legacy video/poster files into json if json empty
   local vid="" post=""
@@ -50,10 +54,17 @@ ensure_config() {
   local has_vid
   has_vid=$(python3 -c "import json,sys; d=json.load(open('$config_path')); print(d.get('video',''))" 2>/dev/null || echo "")
   if [[ -z $has_vid && -n $vid ]]; then
-    local pos_json
+    local pos_json audio_json
     pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('pos',{'anchor':'center','offsetX':0,'offsetY':0})))" 2>/dev/null || echo '{"anchor":"center","offsetX":0,"offsetY":0}')
-    printf '{"video":%s,"poster":%s,"pos":%s}\n' "$(printf '%s' "$vid" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$(printf '%s' "$post" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$pos_json" >"$config_path"
+    audio_json=$(python3 -c "import json; d=json.load(open('$config_path')); print('true' if d.get('audioEnabled') or d.get('audio') else 'false')" 2>/dev/null || echo "false")
+    # auto-enable audio if legacy video has audio and no explicit setting
+    if [[ $audio_json == "false" && -n $vid ]] && has_audio_track "$vid"; then
+      audio_json="true"
+    fi
+    printf '{"video":%s,"poster":%s,"pos":%s,"audioEnabled":%s}\n' "$(printf '%s' "$vid" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$(printf '%s' "$post" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$pos_json" "$audio_json" >"$config_path"
   fi
+  # ensure audioEnabled key exists
+  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); d.setdefault('pos', {'anchor':'center','offsetX':0,'offsetY':0}); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
 }
 
 load_pos() {
@@ -63,9 +74,11 @@ load_pos() {
 
 sync_sddm() {
   ensure_config
-  local video poster anchor ox oy
+  local video poster anchor ox oy audioEnabled audioMuted
   video=$(python3 -c "import json; print(json.load(open('$config_path')).get('video',''))" 2>/dev/null || echo "")
   poster=$(python3 -c "import json; print(json.load(open('$config_path')).get('poster',''))" 2>/dev/null || echo "")
+  audioEnabled=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
+  if [[ $audioEnabled == "true" ]]; then audioMuted="false"; else audioMuted="true"; fi
   read -r anchor ox oy <<<"$(load_pos)"
 
   if [[ -z $video || ! -f $video ]]; then
@@ -95,8 +108,8 @@ sync_sddm() {
 
   # render template if exists, else use sddm Main.qml with injected pos via sed
   if [[ -f $tpl ]]; then
-    # anchor mapping: keep as string, offsets ints
-    sed -e "s/{{anchor}}/$anchor/g" -e "s/{{offsetX}}/$ox/g" -e "s/{{offsetY}}/$oy/g" "$tpl" >"$tmp_main"
+    # anchor mapping: keep as string, offsets ints, audio
+    sed -e "s/{{anchor}}/$anchor/g" -e "s/{{offsetX}}/$ox/g" -e "s/{{offsetY}}/$oy/g" -e "s/{{audioMuted}}/$audioMuted/g" -e "s/{{audioEnabled}}/$audioEnabled/g" "$tpl" >"$tmp_main"
   else
     # fallback: copy current main
     cp -f "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "/usr/share/omarchy/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "$sddm_main" "$tmp_main"
@@ -124,7 +137,7 @@ resume_live_boot() {
 }
 
 clear_boot() {
-  printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0}}\n' >"$config_path"
+  printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false}\n' >"$config_path"
   rm -f "$video_state" "$poster_state" "$expected_state"
   sync_sddm
 }
@@ -183,6 +196,7 @@ theme_dir="$HOME/.local/state/omarchy/current/theme/backgrounds"
 user_dir="$HOME/.config/omarchy/backgrounds/$theme_name"
 current_video=$(python3 -c "import json; print(json.load(open('$config_path')).get('video',''))" 2>/dev/null || echo "")
 current_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('pos',{'anchor':'center','offsetX':0,'offsetY':0})))" 2>/dev/null || echo '{"anchor":"center","offsetX":0,"offsetY":0}')
+current_audio=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
 
 rows_file=$(mktemp)
 trap 'rm -f "$rows_file"' EXIT
@@ -214,7 +228,7 @@ if [[ ! -s $rows_file ]]; then
 fi
 
 rows_b64=$(base64 -w 0 <"$rows_file")
-payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json")
+payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"audioEnabled":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_audio")
 
 # summon overlay; keepLoaded overlay stays mounted
 if ! omarchy-shell shell summon live-boot "$payload" >/dev/null 2>&1; then
