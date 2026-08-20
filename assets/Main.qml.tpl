@@ -93,6 +93,8 @@ Rectangle {
     id: passWrap
     width: {{fieldWidth}}
     height: {{fieldHeight}}
+    // scale-to-fit: keeps logo + entry inside any field size (natural ~320x140)
+    readonly property real s: Math.min(1.0, width / 320.0, height / 140.0)
     anchors.centerIn: root.anchor === "center" ? parent : undefined
     anchors.horizontalCenter: root.anchor !== "center" && root.anchor !== "custom" ? parent.horizontalCenter : undefined
     anchors.top: root.anchor.indexOf("top") !== -1 ? parent.top : undefined
@@ -110,12 +112,13 @@ Rectangle {
 
     Column {
       anchors.centerIn: parent
+      scale: passWrap.s
       spacing: 18
 
       Image {
         id: logo
         source: "logo.png"
-        width: Math.min(sourceSize.width, root.width * 0.7)
+        width: Math.min(sourceSize.width, 260)
         height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : 0
         fillMode: Image.PreserveAspectFit
         anchors.horizontalCenter: parent.horizontalCenter
@@ -135,7 +138,7 @@ Rectangle {
         }
 
         Item {
-          width: Math.max(160, passWrap.width - 80)
+          width: Math.min(300, Math.max(160, passWrap.width - 80))
           height: 44
 
           Image {

@@ -400,6 +400,8 @@ Item {
               id: passWrap
               width: root.fieldSize.width
               height: root.fieldSize.height
+              // scale-to-fit: mirrors Main.qml.tpl passWrap.s so preview matches boot screen
+              readonly property real s: Math.min(1.0, width / 320.0, height / 140.0)
               // anchor logic — custom uses free x/y, others use anchors (x/y ignored)
               anchors.centerIn: root.pos.anchor === "center" ? parent : undefined
               anchors.horizontalCenter: root.pos.anchor !== "center" && root.pos.anchor !== "custom" ? parent.horizontalCenter : undefined
@@ -429,6 +431,7 @@ Item {
                 anchors.leftMargin: 14
                 anchors.rightMargin: 14
                 spacing: 10
+                scale: passWrap.s
                 Text { text: ""; color: Color.foreground; font.pixelSize: 18; font.family: Style.font.family }
                 Row {
                   Layout.fillWidth: true
