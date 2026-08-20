@@ -67,7 +67,7 @@ boot_video_for() {
 
 ensure_config() {
   if [[ ! -f $config_path ]]; then
-    printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"sizesCustomized":false,"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250}\n' >"$config_path"
+    printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"sizesCustomized":false,"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250,"linkPasswordToLogo":true,"passwordGap":40}\n' >"$config_path"
   fi
   # migrate legacy video/poster files into json if json empty
   local vid="" post=""
@@ -86,7 +86,7 @@ ensure_config() {
     printf '{"video":%s,"poster":%s,"pos":%s,"audioEnabled":%s}\n' "$(printf '%s' "$vid" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$(printf '%s' "$post" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$pos_json" "$audio_json" >"$config_path"
   fi
   # ensure keys exist
-  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); res=d.setdefault('previewRes', {'width':1920,'height':1080}); lw=min(800, int(res.get('width',1920))*0.8); lh=round(lw*188/800); d.setdefault('pos', {'anchor':'custom','offsetX':0,'offsetY':round(lh/2+20)}); d.setdefault('fieldSize', {'width':335,'height':48}); d.setdefault('showLogo', True); d.setdefault('logoPos', {'offsetX':0,'offsetY':-44}); d.setdefault('logoSize', {'width':round(lw),'height':lh}); d.setdefault('sizesCustomized',False); d.setdefault('revealMode','first-frame'); d.setdefault('transitionDuration',700); d.setdefault('passwordDelay',250); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
+  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); res=d.setdefault('previewRes', {'width':1920,'height':1080}); lw=min(800, int(res.get('width',1920))*0.8); lh=round(lw*188/800); d.setdefault('pos', {'anchor':'custom','offsetX':0,'offsetY':round(lh/2+20)}); d.setdefault('fieldSize', {'width':335,'height':48}); d.setdefault('showLogo', True); d.setdefault('logoPos', {'offsetX':0,'offsetY':-44}); d.setdefault('logoSize', {'width':round(lw),'height':lh}); d.setdefault('sizesCustomized',False); d.setdefault('revealMode','first-frame'); d.setdefault('transitionDuration',700); d.setdefault('passwordDelay',250); d.setdefault('linkPasswordToLogo',True); d.setdefault('passwordGap',40); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
 }
 
 load_pos() {
@@ -170,7 +170,7 @@ resume_live_boot() {
 }
 
 clear_boot() {
-  printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"sizesCustomized":false,"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250}\n' >"$config_path"
+  printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"sizesCustomized":false,"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250,"linkPasswordToLogo":true,"passwordGap":40}\n' >"$config_path"
   rm -f "$video_state" "$poster_state" "$expected_state"
   sync_sddm
 }
@@ -240,6 +240,8 @@ detected_res_json=$(hyprctl monitors -j 2>/dev/null | jq -c 'map(select(.focused
 current_reveal_mode=$(python3 -c "import json; print(json.load(open('$config_path')).get('revealMode','first-frame'))" 2>/dev/null || echo "first-frame")
 current_transition_duration=$(python3 -c "import json; print(json.load(open('$config_path')).get('transitionDuration',700))" 2>/dev/null || echo "700")
 current_password_delay=$(python3 -c "import json; print(json.load(open('$config_path')).get('passwordDelay',250))" 2>/dev/null || echo "250")
+current_link_password=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('linkPasswordToLogo',True) else 'false')" 2>/dev/null || echo "true")
+current_password_gap=$(python3 -c "import json; print(json.load(open('$config_path')).get('passwordGap',40))" 2>/dev/null || echo "40")
 current_audio=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
 
 rows_file=$(mktemp)
@@ -272,7 +274,7 @@ if [[ ! -s $rows_file ]]; then
 fi
 
 rows_b64=$(base64 -w 0 <"$rows_file")
-payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"sizesCustomized":%s,"previewRes":%s,"detectedRes":%s,"themeDir":"%s","audioEnabled":%s,"revealMode":"%s","transitionDuration":%s,"passwordDelay":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_sizes_customized" "$current_res_json" "$detected_res_json" "$sddm_theme_dir" "$current_audio" "$current_reveal_mode" "$current_transition_duration" "$current_password_delay")
+payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"sizesCustomized":%s,"previewRes":%s,"detectedRes":%s,"themeDir":"%s","audioEnabled":%s,"revealMode":"%s","transitionDuration":%s,"passwordDelay":%s,"linkPasswordToLogo":%s,"passwordGap":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_sizes_customized" "$current_res_json" "$detected_res_json" "$sddm_theme_dir" "$current_audio" "$current_reveal_mode" "$current_transition_duration" "$current_password_delay" "$current_link_password" "$current_password_gap")
 
 # summon overlay; keepLoaded overlay stays mounted
 if ! omarchy-shell shell summon live-boot "$payload" >/dev/null 2>&1; then

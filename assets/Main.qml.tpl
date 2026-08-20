@@ -160,7 +160,7 @@ Rectangle {
     y: root.height/2 - height/2 + root.logoOffsetY
     visible: root.showLogo
     opacity: root.logoRevealed ? 1 : 0
-    Behavior on opacity { NumberAnimation { duration: root.transitionDuration; easing.type: Easing.OutCubic } }
+    Behavior on opacity { NumberAnimation { duration: root.revealMode === "video-end" ? 80 : root.transitionDuration; easing.type: Easing.OutCubic } }
     Behavior on x { NumberAnimation { duration: root.transitionDuration } }
     Behavior on y { NumberAnimation { duration: root.transitionDuration } }
 

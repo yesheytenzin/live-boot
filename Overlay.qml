@@ -45,6 +45,9 @@ Item {
   property bool logoDragging: false
   property bool logoResizing: false
   property bool resizing: false
+  property bool linkPasswordToLogo: true
+  property int passwordGap: 40
+  property bool endAlignMode: false
   readonly property int maxVideoDuration: 10000
 
   readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || home + "/.local/state") + "/omarchy/live-boot"
@@ -103,6 +106,8 @@ Item {
     if (args.revealMode === "video-end" || args.revealMode === "first-frame") revealMode = args.revealMode
     if (args.transitionDuration !== undefined) transitionDuration = Math.max(100, Math.min(3000, parseInt(args.transitionDuration)||700))
     if (args.passwordDelay !== undefined) passwordDelay = Math.max(0, Math.min(3000, parseInt(args.passwordDelay)||0))
+    linkPasswordToLogo = args.linkPasswordToLogo !== false
+    if (args.passwordGap !== undefined) passwordGap = Math.max(0, Math.min(300, parseInt(args.passwordGap)||0))
     opened = true
     detectScreenTimer.restart()
     videoReady = false
@@ -141,6 +146,8 @@ Item {
         if (cfg.revealMode === "video-end" || cfg.revealMode === "first-frame") root.revealMode = cfg.revealMode
         if (cfg.transitionDuration !== undefined) root.transitionDuration = Math.max(100, Math.min(3000, parseInt(cfg.transitionDuration)||700))
         if (cfg.passwordDelay !== undefined) root.passwordDelay = Math.max(0, Math.min(3000, parseInt(cfg.passwordDelay)||0))
+        root.linkPasswordToLogo = cfg.linkPasswordToLogo !== false
+        if (cfg.passwordGap !== undefined) root.passwordGap = Math.max(0, Math.min(300, parseInt(cfg.passwordGap)||0))
         if (cfg.video && !root.previewVideo) {
           root.previewVideo = String(cfg.video)
           root.previewPoster = String(cfg.poster || "")
@@ -193,6 +200,7 @@ Item {
   }
 
   function replayTransition() {
+    endAlignMode = false
     previewRevealStarted = false
     previewLogoRevealed = false
     previewPasswordRevealed = false
@@ -210,40 +218,62 @@ Item {
 
   function applySelected() {
     if (!selectedPath) return
-    var payload = JSON.stringify({ video: selectedPath, poster: previewPoster, audioEnabled: audioEnabled, pos: pos, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay })
+    var payload = JSON.stringify({ video: selectedPath, poster: previewPoster, audioEnabled: audioEnabled, pos: pos, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay, linkPasswordToLogo: linkPasswordToLogo, passwordGap: passwordGap })
     Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot applySettings " + Util.shellQuote(payload) + " >/dev/null 2>&1 &"])
     close()
   }
 
   function updatePos(anchor, ox, oy) {
+    linkPasswordToLogo = false
     pos = { anchor: anchor, offsetX: ox, offsetY: oy }
   }
   function updateFieldSize(w, h) {
     fieldSize = { width: Math.max(200, Math.min(1600, w)), height: Math.max(40, Math.min(320, h)) }
     sizesCustomized = true
+    syncLinkedPassword()
   }
   function updateShowLogo(v) { showLogo = !!v }
-  function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy } }
-  function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) }; sizesCustomized = true }
+  function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy }; syncLinkedPassword() }
+  function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) }; sizesCustomized = true; syncLinkedPassword() }
+  function syncLinkedPassword() {
+    if (!linkPasswordToLogo) return
+    pos = { anchor: "custom", offsetX: Math.round(logoPos.offsetX), offsetY: Math.round(logoPos.offsetY + logoSize.height/2 + passwordGap + fieldSize.height/2) }
+  }
+  function setPasswordLink(enabled) { linkPasswordToLogo = !!enabled; syncLinkedPassword() }
+  function updatePasswordGap(value) { passwordGap = Math.max(0, Math.min(300, value)); linkPasswordToLogo = true; syncLinkedPassword() }
   function logoWidthFor(screenWidth) { return Math.round(Math.min(800, screenWidth * 0.8)) }
   function logoHeightFor(screenWidth) { return Math.round(logoWidthFor(screenWidth) * 188 / 800) }
   function defaultLogoWidth() { return logoWidthFor(previewRes.width) }
   function defaultLogoHeight() { return logoHeightFor(previewRes.width) }
   function defaultPasswordY() { return Math.round(defaultLogoHeight() / 2 + 20) }
   function resetDefaultPositions() {
-    updateLogoPos(0, -44)
-    updatePos("custom", 0, defaultPasswordY())
+    logoPos = { offsetX: 0, offsetY: -44 }
+    linkPasswordToLogo = true
+    passwordGap = 40
+    syncLinkedPassword()
   }
   function resetDefaultSizes() {
     updateLogoSize(defaultLogoWidth(), defaultLogoHeight())
     updateFieldSize(335, 48)
     sizesCustomized = false
+    syncLinkedPassword()
   }
 
   Timer { id: previewPasswordTimer; interval: root.passwordDelay; onTriggered: root.previewPasswordRevealed = true }
   Timer { id: previewFallbackTimer; interval: 5000; onTriggered: if (!root.videoReady) root.revealPreview() }
   Timer { id: previewEndSafety; interval: 15000; onTriggered: root.revealPreview() }
+  Timer { id: endAlignTimer; interval: 80; onTriggered: { previewPlayer.pause(); root.previewRevealStarted = true; root.previewLogoRevealed = true; root.previewPasswordRevealed = true; root.syncLinkedPassword() } }
   Timer { id: detectScreenTimer; interval: 0; onTriggered: root.detectScreen() }
+  function alignEndFrame() {
+    revealMode = "video-end"
+    endAlignMode = true
+    setPasswordLink(true)
+    previewPasswordTimer.stop()
+    previewFallbackTimer.stop()
+    previewEndSafety.stop()
+    previewPlayer.setPosition(Math.max(0, Math.min(previewPlayer.duration || maxVideoDuration, maxVideoDuration) - 50))
+    endAlignTimer.restart()
+  }
   function detectScreen() {
     var w = detectedRes.width > 0 ? detectedRes.width : Math.round(win.Screen.width)
     var h = detectedRes.height > 0 ? detectedRes.height : Math.round(win.Screen.height)
@@ -251,6 +281,7 @@ Item {
 
     previewRes = { width: w, height: h }
     if (!sizesCustomized) resetDefaultSizes()
+    syncLinkedPassword()
   }
 
   // position helpers for preview
@@ -538,8 +569,8 @@ Item {
               x: preview.width/2 - width/2 + root.logoPos.offsetX * preview.displayScale
               y: preview.height/2 - height/2 + root.logoPos.offsetY * preview.displayScale
               visible: root.showLogo
-              opacity: root.previewLogoRevealed ? 1 : 0
-              Behavior on opacity { NumberAnimation { duration: root.transitionDuration; easing.type: Easing.OutCubic } }
+              opacity: root.previewLogoRevealed ? (root.endAlignMode ? 0.55 : 1) : 0
+              Behavior on opacity { NumberAnimation { duration: root.revealMode === "video-end" ? 80 : root.transitionDuration; easing.type: Easing.OutCubic } }
               Behavior on x { enabled: !root.logoDragging; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
               Behavior on y { enabled: !root.logoDragging; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
               Behavior on width { enabled: !root.logoResizing; NumberAnimation { duration: 120 } }
@@ -790,10 +821,10 @@ Item {
                 MouseArea { anchors.fill: parent; onClicked: root.replayTransition() }
               }
               Rectangle {
-                width: 48; height: 26; radius: 7
-                color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                Text { anchors.centerIn: parent; text: "Skip"; color: Color.foreground; font.pixelSize: Style.font.caption }
-                MouseArea { anchors.fill: parent; onClicked: root.revealPreview() }
+                width: 66; height: 26; radius: 7
+                color: root.endAlignMode ? Color.accent : Util.alpha(Color.background,0.5); border.color: root.endAlignMode ? Color.accent : Color.imagePicker.unselectedBorder; border.width: 1
+                Text { anchors.centerIn: parent; text: "End align"; color: root.endAlignMode ? Color.background : Color.foreground; font.pixelSize: Style.font.caption }
+                MouseArea { anchors.fill: parent; onClicked: root.alignEndFrame() }
               }
             }
             RowLayout {
@@ -818,7 +849,7 @@ Item {
                 }
               }
               Item { Layout.fillWidth: true }
-              Text { text: root.revealMode === "video-end" ? "Click preview or Skip to reveal" : "Reveal on first frame"; color: Color.foreground; opacity: 0.4; font.pixelSize: 9 }
+              Text { text: root.endAlignMode ? "55% overlay: match the final text edges" : (root.revealMode === "video-end" ? "Click preview to reveal" : "Reveal on first frame"); color: Color.foreground; opacity: 0.4; font.pixelSize: 9 }
             }
             }
           }
@@ -902,7 +933,12 @@ Item {
                     Layout.fillWidth: true
                     Text { text: "PASSWORD"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
                     Item { Layout.fillWidth: true }
-                    Text { text: root.pos.anchor === "custom" ? "FREE" : root.pos.anchor.toUpperCase(); color: Color.foreground; font.pixelSize: 9; opacity: 0.45 }
+                    Rectangle {
+                      Layout.preferredWidth: 58; Layout.preferredHeight: 20; radius: 5
+                      color: root.linkPasswordToLogo ? Util.alpha(Color.accent,0.22) : "transparent"; border.color: root.linkPasswordToLogo ? Color.accent : Color.imagePicker.unselectedBorder; border.width: 1
+                      Text { anchors.centerIn: parent; text: root.linkPasswordToLogo ? "LINKED" : (root.pos.anchor === "custom" ? "FREE" : root.pos.anchor.toUpperCase()); color: Color.foreground; font.pixelSize: 8; opacity: 0.8 }
+                      MouseArea { anchors.fill: parent; onClicked: root.setPasswordLink(!root.linkPasswordToLogo) }
+                    }
                   }
                   Text { text: "SIZE"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
                   RowLayout {
@@ -926,7 +962,19 @@ Item {
                       }
                     }
                   }
-                  Text { text: "OFFSET"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
+                  RowLayout {
+                    Layout.fillWidth: true
+                    Text { text: "OFFSET"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
+                    Item { Layout.fillWidth: true }
+                    Text { text: "GAP"; color: Color.foreground; font.pixelSize: 8; opacity: 0.4 }
+                    Rectangle { Layout.preferredWidth: 56; Layout.preferredHeight: 20; radius: 5; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                      RowLayout { anchors.fill: parent; spacing: 0
+                        Rectangle { Layout.preferredWidth: 17; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "-"; color: Color.foreground; font.pixelSize: 9 } MouseArea { anchors.fill: parent; onClicked: root.updatePasswordGap(root.passwordGap-5) } }
+                        Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: root.passwordGap; color: Color.foreground; font.pixelSize: 9 }
+                        Rectangle { Layout.preferredWidth: 17; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground; font.pixelSize: 9 } MouseArea { anchors.fill: parent; onClicked: root.updatePasswordGap(root.passwordGap+5) } }
+                      }
+                    }
+                  }
                   RowLayout {
                     Layout.fillWidth: true; spacing: 5
                     Text { text: "X"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }

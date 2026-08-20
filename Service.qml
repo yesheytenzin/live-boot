@@ -26,6 +26,8 @@ Item {
   property string revealMode: "first-frame"
   property int transitionDuration: 700
   property int passwordDelay: 250
+  property bool linkPasswordToLogo: true
+  property int passwordGap: 40
 
   function loadConfig() {
     if (!configFile.text()) return
@@ -44,6 +46,8 @@ Item {
       if (cfg.revealMode === "video-end" || cfg.revealMode === "first-frame") revealMode = cfg.revealMode
       if (cfg.transitionDuration !== undefined) transitionDuration = Math.max(100, Math.min(3000, parseInt(cfg.transitionDuration)||700))
       if (cfg.passwordDelay !== undefined) passwordDelay = Math.max(0, Math.min(3000, parseInt(cfg.passwordDelay)||0))
+      linkPasswordToLogo = cfg.linkPasswordToLogo !== false
+      if (cfg.passwordGap !== undefined) passwordGap = Math.max(0, Math.min(300, parseInt(cfg.passwordGap)||0))
       if (cfg.fieldSize && typeof cfg.fieldSize === "object") fieldSize = { width: Math.max(200, Math.min(1600, parseInt(cfg.fieldSize.width)||335)), height: Math.max(40, Math.min(320, parseInt(cfg.fieldSize.height)||48)) }
       else if (cfg.size && typeof cfg.size === "object") fieldSize = { width: Math.max(200, Math.min(1600, parseInt(cfg.size.width)||335)), height: Math.max(40, Math.min(320, parseInt(cfg.size.height)||48)) }
       sizesCustomized = cfg.sizesCustomized === true
@@ -53,7 +57,7 @@ Item {
   }
 
   function saveConfig() {
-    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay }
+    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay, linkPasswordToLogo: linkPasswordToLogo, passwordGap: passwordGap }
     configFile.setText(JSON.stringify(payload, null, 2) + "\n")
   }
 
@@ -135,6 +139,8 @@ Item {
       root.revealMode = cfg.revealMode === "video-end" ? "video-end" : "first-frame"
       root.transitionDuration = Math.max(100, Math.min(3000, parseInt(cfg.transitionDuration,10)||700))
       root.passwordDelay = Math.max(0, Math.min(3000, parseInt(cfg.passwordDelay,10)||0))
+      root.linkPasswordToLogo = cfg.linkPasswordToLogo !== false
+      root.passwordGap = Math.max(0, Math.min(300, parseInt(cfg.passwordGap,10)||0))
       root.saveConfig()
       root.syncSddm()
     }
@@ -203,7 +209,7 @@ Item {
       root.syncSddm()
     }
     function status(): string {
-      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled, fieldSize: root.fieldSize, showLogo: root.showLogo, logoPos: root.logoPos, logoSize: root.logoSize, sizesCustomized: root.sizesCustomized, previewRes: root.previewRes, revealMode: root.revealMode, transitionDuration: root.transitionDuration, passwordDelay: root.passwordDelay })
+      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled, fieldSize: root.fieldSize, showLogo: root.showLogo, logoPos: root.logoPos, logoSize: root.logoSize, sizesCustomized: root.sizesCustomized, previewRes: root.previewRes, revealMode: root.revealMode, transitionDuration: root.transitionDuration, passwordDelay: root.passwordDelay, linkPasswordToLogo: root.linkPasswordToLogo, passwordGap: root.passwordGap })
     }
     function stop(): void {
       root.videoPath = ""
