@@ -187,6 +187,12 @@ Item {
     updateLogoPos(0, -70)
     updatePos("center", 0, 0)
   }
+  function defaultSizeScale() { return previewRes.height / 480.0 }
+  function resetDefaultSizes() {
+    var s = defaultSizeScale()
+    updateLogoSize(Math.round(260 * s), Math.round(61 * s))
+    updateFieldSize(Math.round(340 * s), Math.round(56 * s))
+  }
   function updatePreviewRes(w, h) {
     previewRes = { width: Math.max(640, Math.min(7680, w)), height: Math.max(480, Math.min(4320, h)) }
   }
@@ -734,6 +740,14 @@ Item {
                 Layout.fillWidth: true
                 Text { text: "Preview scale"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
                 Item { Layout.fillWidth: true }
+                Rectangle {
+                  width: 92; height: 24; radius: 6
+                  color: Util.alpha(Color.background,0.55)
+                  border.color: Color.imagePicker.unselectedBorder
+                  border.width: 1
+                  Text { anchors.centerIn: parent; text: "Default sizes"; color: Color.foreground; font.pixelSize: Style.font.caption }
+                  MouseArea { anchors.fill: parent; onClicked: root.resetDefaultSizes() }
+                }
                 Text { text: previewRes.width + "×" + previewRes.height + " · preview " + Math.round(preview.displayScale*100) + "%"; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
               }
               RowLayout {
@@ -764,7 +778,10 @@ Item {
                   }
                 }
               }
-              Text { text: "Drag the logo and password separately. Use Test 640×480 to match sddm --test-mode exactly."; color: Color.foreground; opacity: 0.42; font.pixelSize: 9; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+              Text {
+                text: "Defaults for " + previewRes.width + "×" + previewRes.height + ": logo " + Math.round(260*root.defaultSizeScale()) + "×" + Math.round(61*root.defaultSizeScale()) + " · password " + Math.round(340*root.defaultSizeScale()) + "×" + Math.round(56*root.defaultSizeScale())
+                color: Color.foreground; opacity: 0.42; font.pixelSize: 9; wrapMode: Text.WordWrap; Layout.fillWidth: true
+              }
             }
           }
 
