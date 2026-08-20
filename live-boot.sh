@@ -210,6 +210,14 @@ uninstall_plugin_state() {
   fi
   rm -rf "$state_dir" "$cache_dir"
 }
+remove_plugin() {
+  uninstall_plugin_state
+  if [[ -f $sddm_main_backup || -f $sddm_video || -f /etc/sddm.conf.d/autologin.conf.live-boot-disabled || -f /etc/sddm.conf.d/autologin.conf.disabled ]]; then
+    echo "live-boot: cleanup did not complete; plugin removal aborted" >&2
+    return 1
+  fi
+  exec omarchy plugin remove "$plugin_id" --yes
+}
 
 check_config() {
   # placeholder for Service timer poll - ensure sync if config changed externally
@@ -222,6 +230,7 @@ case "${1:-}" in
   --clear) clear_boot; exit 0 ;;
   --wire-menu) ensure_menu_override; exit 0 ;;
   --unwire-menu) unwire_menu_override; exit 0 ;;
+  --remove) remove_plugin; exit $? ;;
   --uninstall) uninstall_plugin_state; exit 0 ;;
   --check-config) check_config; exit 0 ;;
 esac

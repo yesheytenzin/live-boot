@@ -57,9 +57,10 @@ omarchy plugin update live-boot
 ## Remove
 
 ```bash
-~/.config/omarchy/plugins/live-boot/live-boot.sh --uninstall
-omarchy plugin remove live-boot
+~/.config/omarchy/plugins/live-boot/live-boot.sh --remove
 ```
+
+Use `--remove` instead of a direct `omarchy plugin remove live-boot`: Omarchy does not run plugin removal hooks. The safe removal command restores the stock SDDM theme and the previous autologin configuration before deleting the plugin.
 
 State in `~/.local/state/omarchy/live-boot/config.json` (`video`, `poster`, `pos`, `logoPos`, `fieldSize`, `showLogo`, `previewRes`, `audioEnabled`, `sizesCustomized`, `positionsCustomized`), cache in `~/.cache/omarchy/live-boot/`.
 
