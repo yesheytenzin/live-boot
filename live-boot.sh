@@ -209,6 +209,8 @@ current_show_logo=$(python3 -c "import json; print('true' if json.load(open('$co
 current_logo_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoPos',{'offsetX':0,'offsetY':-44})))" 2>/dev/null || echo '{"offsetX":0,"offsetY":-44}')
 current_logo_size_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('logoSize',{'width':800,'height':188})))" 2>/dev/null || echo '{"width":800,"height":188}')
 current_res_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('previewRes',{'width':1920,'height':1080})))" 2>/dev/null || echo '{"width":1920,"height":1080}')
+detected_res_json=$(hyprctl monitors -j 2>/dev/null | jq -c 'map(select(.focused))[0] // .[0] | {width, height}' 2>/dev/null || true)
+[[ $detected_res_json == \{* ]] || detected_res_json=$current_res_json
 current_reveal_mode=$(python3 -c "import json; print(json.load(open('$config_path')).get('revealMode','first-frame'))" 2>/dev/null || echo "first-frame")
 current_transition_duration=$(python3 -c "import json; print(json.load(open('$config_path')).get('transitionDuration',700))" 2>/dev/null || echo "700")
 current_password_delay=$(python3 -c "import json; print(json.load(open('$config_path')).get('passwordDelay',250))" 2>/dev/null || echo "250")
@@ -244,7 +246,7 @@ if [[ ! -s $rows_file ]]; then
 fi
 
 rows_b64=$(base64 -w 0 <"$rows_file")
-payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"previewRes":%s,"themeDir":"%s","audioEnabled":%s,"revealMode":"%s","transitionDuration":%s,"passwordDelay":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_res_json" "$sddm_theme_dir" "$current_audio" "$current_reveal_mode" "$current_transition_duration" "$current_password_delay")
+payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"logoPos":%s,"logoSize":%s,"previewRes":%s,"detectedRes":%s,"themeDir":"%s","audioEnabled":%s,"revealMode":"%s","transitionDuration":%s,"passwordDelay":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_logo_pos_json" "$current_logo_size_json" "$current_res_json" "$detected_res_json" "$sddm_theme_dir" "$current_audio" "$current_reveal_mode" "$current_transition_duration" "$current_password_delay")
 
 # summon overlay; keepLoaded overlay stays mounted
 if ! omarchy-shell shell summon live-boot "$payload" >/dev/null 2>&1; then

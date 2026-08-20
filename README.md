@@ -24,7 +24,7 @@ Next reboot either loops video behind the login or plays it once before revealin
 - Generates thumbnails with existing `ffmpeg`, detects audio with `ffprobe`
 - **Audio toggle**: auto-enables when video has an audio stream; shows “No audio track” otherwise. Preview respects toggle via `AudioOutput { muted: !audioEnabled }`
 - Independent logo/password dragging and resizing (password up to 1600×320, logo up to 1200×400)
-- Resolution-aware WYSIWYG preview, including a 640×480 SDDM test-mode preset
+- WYSIWYG preview automatically detects the monitor hosting the picker
 - Default size/position actions reproduce Omarchy's stock responsive logo and fixed 335×48 password row
 - Optional after-video reveal transition with live replay/skip preview, fade timing, and password delay controls
 - Live preview in overlay: `video → password` transition WYSIWYG

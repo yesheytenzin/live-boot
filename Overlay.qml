@@ -29,6 +29,7 @@ Item {
   property var logoPos: ({ offsetX: 0, offsetY: -44 })
   property var logoSize: ({ width: 800, height: 188 })
   property var previewRes: ({ width: 1920, height: 1080 })
+  property var detectedRes: ({ width: 0, height: 0 })
   property string themeDir: "/usr/share/sddm/themes/omarchy"
   property string revealMode: "first-frame"
   property int transitionDuration: 700
@@ -94,11 +95,13 @@ Item {
     if (args.logoPos && typeof args.logoPos === "object") logoPos = { offsetX: parseInt(args.logoPos.offsetX)||0, offsetY: parseInt(args.logoPos.offsetY)||0 }
     if (args.logoSize && typeof args.logoSize === "object") logoSize = { width: Math.max(80,Math.min(1200,args.logoSize.width||800)), height: Math.max(20,Math.min(400,args.logoSize.height||188)) }
     if (args.previewRes && typeof args.previewRes === "object") previewRes = { width: parseInt(args.previewRes.width)||1920, height: parseInt(args.previewRes.height)||1080 }
+    if (args.detectedRes && typeof args.detectedRes === "object") detectedRes = { width: parseInt(args.detectedRes.width)||0, height: parseInt(args.detectedRes.height)||0 }
     if (typeof args.themeDir === "string" && args.themeDir) themeDir = String(args.themeDir)
     if (args.revealMode === "video-end" || args.revealMode === "first-frame") revealMode = args.revealMode
     if (args.transitionDuration !== undefined) transitionDuration = Math.max(100, Math.min(3000, parseInt(args.transitionDuration)||700))
     if (args.passwordDelay !== undefined) passwordDelay = Math.max(0, Math.min(3000, parseInt(args.passwordDelay)||0))
     opened = true
+    detectScreenTimer.restart()
     videoReady = false
     previewHasAudio = false
     if (previewVideo) { replayTransition(); audioProbeProc.running = true }
@@ -217,8 +220,10 @@ Item {
   function updateShowLogo(v) { showLogo = !!v }
   function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy } }
   function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) } }
-  function defaultLogoWidth() { return Math.min(800, previewRes.width * 0.8) }
-  function defaultLogoHeight() { return Math.round(defaultLogoWidth() * 188 / 800) }
+  function logoWidthFor(screenWidth) { return Math.round(Math.min(800, screenWidth * 0.8)) }
+  function logoHeightFor(screenWidth) { return Math.round(logoWidthFor(screenWidth) * 188 / 800) }
+  function defaultLogoWidth() { return logoWidthFor(previewRes.width) }
+  function defaultLogoHeight() { return logoHeightFor(previewRes.width) }
   function defaultPasswordY() { return Math.round(defaultLogoHeight() / 2 + 20) }
   function resetDefaultPositions() {
     updateLogoPos(0, -44)
@@ -232,8 +237,17 @@ Item {
   Timer { id: previewPasswordTimer; interval: root.passwordDelay; onTriggered: root.previewPasswordRevealed = true }
   Timer { id: previewFallbackTimer; interval: 5000; onTriggered: if (!root.videoReady) root.revealPreview() }
   Timer { id: previewEndSafety; interval: 15000; onTriggered: root.revealPreview() }
-  function updatePreviewRes(w, h) {
-    previewRes = { width: Math.max(640, Math.min(7680, w)), height: Math.max(480, Math.min(4320, h)) }
+  Timer { id: detectScreenTimer; interval: 0; onTriggered: root.detectScreen() }
+  function detectScreen() {
+    var w = detectedRes.width > 0 ? detectedRes.width : Math.round(win.Screen.width)
+    var h = detectedRes.height > 0 ? detectedRes.height : Math.round(win.Screen.height)
+    if (w < 1 || h < 1) return
+
+    var usedDefaults = Math.abs(logoSize.width - logoWidthFor(previewRes.width)) < 1
+        && Math.abs(logoSize.height - logoHeightFor(previewRes.width)) < 1
+        && fieldSize.width === 335 && fieldSize.height === 48
+    previewRes = { width: w, height: h }
+    if (usedDefaults) resetDefaultSizes()
   }
 
   // position helpers for preview
@@ -856,54 +870,26 @@ Item {
               Text { text: "corner ⤡"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
             }
 
-            // resolution / scale - laptop vs desktop preview
+            // The preview follows the monitor hosting this picker.
             ColumnLayout {
               Layout.fillWidth: true
               spacing: 4
               RowLayout {
                 Layout.fillWidth: true
-                Text { text: "Preview scale"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+                Text { text: "Detected screen"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
                 Item { Layout.fillWidth: true }
                 Rectangle {
-                  width: 92; height: 24; radius: 6
+                  width: 108; height: 24; radius: 6
                   color: Util.alpha(Color.background,0.55)
                   border.color: Color.imagePicker.unselectedBorder
                   border.width: 1
-                  Text { anchors.centerIn: parent; text: "Default sizes"; color: Color.foreground; font.pixelSize: Style.font.caption }
+                  Text { anchors.centerIn: parent; text: "Use default sizes"; color: Color.foreground; font.pixelSize: Style.font.caption }
                   MouseArea { anchors.fill: parent; onClicked: root.resetDefaultSizes() }
                 }
-                Text { text: previewRes.width + "×" + previewRes.height + " · preview " + Math.round(preview.displayScale*100) + "%"; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
-              }
-              RowLayout {
-                Layout.fillWidth: true
-                spacing: 6
-                Repeater {
-                  model: [
-                    { label: "Test", sub: "640×480", w: 640, h: 480 },
-                    { label: "HD", sub: "1366×768", w: 1366, h: 768 },
-                    { label: "FHD", sub: "1920×1080", w: 1920, h: 1080 },
-                    { label: "QHD", sub: "2560×1440", w: 2560, h: 1440 },
-                    { label: "4K", sub: "3840×2160", w: 3840, h: 2160 }
-                  ]
-                  delegate: Rectangle {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    height: 38; radius: 8
-                    color: root.previewRes.width === modelData.w ? Color.accent : Util.alpha(Color.background,0.45)
-                    border.color: root.previewRes.width === modelData.w ? Color.accent : Color.imagePicker.unselectedBorder
-                    border.width: 1
-                    ColumnLayout {
-                      anchors.centerIn: parent
-                      spacing: 1
-                      Text { Layout.alignment: Qt.AlignHCenter; text: modelData.label; color: root.previewRes.width === modelData.w ? Color.background : Color.foreground; font.pixelSize: Style.font.caption; font.weight: Font.DemiBold }
-                      Text { Layout.alignment: Qt.AlignHCenter; text: modelData.sub; color: root.previewRes.width === modelData.w ? Color.background : Color.foreground; opacity: root.previewRes.width === modelData.w ? 0.85 : 0.5; font.pixelSize: 9 }
-                    }
-                    MouseArea { anchors.fill: parent; onClicked: root.updatePreviewRes(modelData.w, modelData.h) }
-                  }
-                }
+                Text { text: root.previewRes.width + "×" + root.previewRes.height + " · preview " + Math.round(preview.displayScale*100) + "%"; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
               }
               Text {
-                text: "Omarchy defaults: logo " + root.defaultLogoWidth() + "×" + root.defaultLogoHeight() + " at 0,-44 · password 335×48 at 0," + root.defaultPasswordY()
+                text: "Omarchy defaults for this screen: logo " + root.defaultLogoWidth() + "×" + root.defaultLogoHeight() + " · password 335×48. Both remain editable."
                 color: Color.foreground; opacity: 0.42; font.pixelSize: 9; wrapMode: Text.WordWrap; Layout.fillWidth: true
               }
             }
