@@ -13,7 +13,7 @@ Fork of the `live-wallpaper` pattern, but for boot only (`live-boot` id).
    ```
 
 2. Open **Style → Boot Background** (or run `~/.config/omarchy/plugins/live-boot/live-boot.sh`).
-3. Pick a video, toggle **Boot sound** if you want audio, drag/choose the password position, **Apply to Boot**.
+3. Pick a video, choose the preview resolution, drag the logo and password independently, resize the password field, then **Apply to Boot**.
 
 Next reboot shows looping video behind the password field. Video is revealed only after first frame (no black flash); password fades in. If the video has audio and sound is enabled, it plays at SDDM (needs `qt6-multimedia` + `gst-plugins` and PipeWire/Pulse at greeter).
 
@@ -23,7 +23,8 @@ Next reboot shows looping video behind the password field. Video is revealed onl
 - Supports MP4, MKV, WebM, MOV, M4V
 - Generates thumbnails with existing `ffmpeg`, detects audio with `ffprobe`
 - **Audio toggle**: auto-enables when video has an audio stream; shows “No audio track” otherwise. Preview respects toggle via `AudioOutput { muted: !audioEnabled }`
-- 9-grid + custom drag positioning for password box
+- Independent logo and password dragging, password resizing up to 1600×320
+- Resolution-aware WYSIWYG preview, including a 640×480 SDDM test-mode preset
 - Live preview in overlay: `video → password` transition WYSIWYG
 - Keeps `background.jpg` poster as fallback if `QtMultimedia` missing
 - Restores stock SDDM on `--uninstall` or `--clear`
@@ -55,7 +56,7 @@ omarchy plugin update live-boot
 omarchy plugin remove live-boot
 ```
 
-State in `~/.local/state/omarchy/live-boot/config.json` (`video`, `poster`, `pos`, `audioEnabled`), cache in `~/.cache/omarchy/live-boot/`.
+State in `~/.local/state/omarchy/live-boot/config.json` (`video`, `poster`, `pos`, `logoPos`, `fieldSize`, `showLogo`, `previewRes`, `audioEnabled`), cache in `~/.cache/omarchy/live-boot/`.
 
 ## Development
 

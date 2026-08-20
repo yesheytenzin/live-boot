@@ -14,6 +14,8 @@ Rectangle {
   property string anchor: "{{anchor}}"
   property int offsetX: {{offsetX}}
   property int offsetY: {{offsetY}}
+  property int logoOffsetX: {{logoOffsetX}}
+  property int logoOffsetY: {{logoOffsetY}}
   property bool audioEnabled: {{audioEnabled}}
   property bool showLogo: {{showLogo}}
   property int sessionIndex: {
@@ -89,13 +91,33 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 600 } }
   }
 
-  // password container - positionable + resizable via live-boot config
+  // Logo is independent from the password field.
+  Item {
+    id: logoWrap
+    width: 260
+    height: Math.round(width * 188 / 800)
+    x: root.width/2 - width/2 + root.logoOffsetX
+    y: root.height/2 - height/2 + root.logoOffsetY
+    visible: root.showLogo
+    opacity: passWrap.opacity
+    Behavior on x { NumberAnimation { duration: 300 } }
+    Behavior on y { NumberAnimation { duration: 300 } }
+
+    Image {
+      anchors.fill: parent
+      source: "logo.png"
+      fillMode: Image.PreserveAspectFit
+      opacity: 0.95
+    }
+  }
+
+  // Password container - independently positionable and resizable.
   Item {
     id: passWrap
     width: {{fieldWidth}}
     height: {{fieldHeight}}
-    // scale-to-fit: keeps logo + entry inside any field size (natural ~320x140)
-    readonly property real s: Math.min(1.0, width / 320.0, height / 140.0)
+    // Natural password row is 340x56. No scale cap: larger sizes enlarge it.
+    readonly property real s: Math.min(width / 340.0, height / 56.0)
     anchors.centerIn: root.anchor === "center" ? parent : undefined
     anchors.horizontalCenter: root.anchor !== "center" && root.anchor !== "custom" ? parent.horizontalCenter : undefined
     anchors.top: root.anchor.indexOf("top") !== -1 ? parent.top : undefined
@@ -111,37 +133,22 @@ Rectangle {
     Behavior on x { NumberAnimation { duration: 300 } }
     Behavior on y { NumberAnimation { duration: 300 } }
 
-    Column {
+    Row {
       anchors.centerIn: parent
       scale: passWrap.s
-      spacing: 18
+      spacing: 12
 
       Image {
-        id: logo
-        source: "logo.png"
-        visible: root.showLogo
-        width: Math.min(sourceSize.width, 260)
-        height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : 0
+        source: root.loginFailed ? "lock-failed.png" : "lock.png"
+        width: 28
+        height: 32
         fillMode: Image.PreserveAspectFit
-        anchors.horizontalCenter: parent.horizontalCenter
-        opacity: 0.95
+        anchors.verticalCenter: parent.verticalCenter
       }
 
-      Row {
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 12
-
-        Image {
-          source: root.loginFailed ? "lock-failed.png" : "lock.png"
-          width: 28
-          height: 32
-          fillMode: Image.PreserveAspectFit
-          anchors.verticalCenter: parent.verticalCenter
-        }
-
-        Item {
-          width: Math.min(300, Math.max(160, passWrap.width - 80))
-          height: 44
+      Item {
+        width: 300
+        height: 44
 
           Image {
             id: entry
@@ -187,7 +194,6 @@ Rectangle {
               }
             }
           }
-        }
       }
     }
   }
