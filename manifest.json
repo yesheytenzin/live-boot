@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "live-boot",
+  "name": "Live Boot",
+  "version": "0.1.0",
+  "author": "yesheytenzin",
+  "description": "Live video wallpaper for the SDDM boot screen with a seamless transition into the password field. Pick a video like a wallpaper and position the login box.",
+  "kinds": ["service", "overlay"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "overlay": "Overlay.qml"
+  }
+}
