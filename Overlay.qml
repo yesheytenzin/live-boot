@@ -457,71 +457,195 @@ Item {
               style: Text.Outline
               styleColor: Util.alpha(Color.background, 0.8)
             }
-          }
 
-          // position controls
-          Text { text: "Password position"; color: Color.foreground; font.pixelSize: Style.font.bodySmall; opacity: 0.7 }
+            // guides + click-to-place surface (behind password, in front of video)
+            Rectangle {
+              anchors.fill: parent
+              color: "transparent"
+              // subtle center guides when near center/custom
+              Rectangle { width: 1; height: parent.height; x: parent.width/2; color: Util.alpha(Color.accent, root.pos.anchor==="center" || (root.pos.anchor==="custom" && Math.abs(root.pos.offsetX)<8 && Math.abs(root.pos.offsetY)<8) ? 0.18 : 0); visible: root.pos.anchor==="center" || root.pos.anchor==="custom" }
+              Rectangle { height: 1; width: parent.width; y: parent.height/2; color: Util.alpha(Color.accent, root.pos.anchor==="center" || (root.pos.anchor==="custom" && Math.abs(root.pos.offsetX)<8 && Math.abs(root.pos.offsetY)<8) ? 0.18 : 0); visible: root.pos.anchor==="center" || root.pos.anchor==="custom" }
+            }
 
-          GridLayout {
-            columns: 3
-            rowSpacing: 4
-            columnSpacing: 4
-            Layout.fillWidth: true
-
-            Repeater {
-              model: [
-                {label:"↖", a:"topLeft"}, {label:"↑", a:"top"}, {label:"↗", a:"topRight"},
-                {label:"←", a:"centerLeft"}, {label:"◉", a:"center"}, {label:"→", a:"centerRight"},
-                {label:"↙", a:"bottomLeft"}, {label:"↓", a:"bottom"}, {label:"↘", a:"bottomRight"}
-              ]
-              delegate: Rectangle {
-                required property var modelData
-                Layout.fillWidth: true
-                height: 30
-                radius: Style.cornerRadius
-                color: root.pos.anchor === modelData.a ? Color.accent : Util.alpha(Color.background, 0.6)
-                border.color: Color.imagePicker.unselectedBorder
-                border.width: 1
-                Text { anchors.centerIn: parent; text: modelData.label; color: root.pos.anchor === modelData.a ? Color.background : Color.foreground; font.pixelSize: Style.font.bodySmall; font.weight: Font.DemiBold }
-                MouseArea { anchors.fill: parent; onClicked: root.updatePos(modelData.a, 0, 0) }
+            MouseArea {
+              anchors.fill: parent
+              z: -1
+              enabled: root.pos.anchor==="custom"
+              cursorShape: Qt.CrossCursor
+              onClicked: function(mouse) {
+                // place password center exactly where clicked
+                root.updatePos("custom", Math.round(mouse.x - preview.width/2), Math.round(mouse.y - preview.height/2))
+              }
+              onPositionChanged: function(mouse) {
+                if (mouse.buttons & Qt.LeftButton) {
+                  root.updatePos("custom", Math.round(mouse.x - preview.width/2), Math.round(mouse.y - preview.height/2))
+                }
               }
             }
-          }
 
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            Text { text: "Custom drag:"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+            // hint when custom
             Rectangle {
-              Layout.fillWidth: true; height: 28; radius: Style.cornerRadius
-              color: root.pos.anchor==="custom" ? Util.alpha(Color.accent,0.15) : Util.alpha(Color.background,0.4)
-              border.color: root.pos.anchor==="custom" ? Color.accent : Color.imagePicker.unselectedBorder
+              visible: root.pos.anchor==="custom"
+              anchors.bottom: parent.bottom
+              anchors.horizontalCenter: parent.horizontalCenter
+              anchors.bottomMargin: 8
+              width: hintText.width + 16; height: 20; radius: 10
+              color: Util.alpha(Color.background,0.72)
+              border.color: Util.alpha(Color.accent,0.45)
               border.width: 1
-              Text { anchors.centerIn: parent; text: root.pos.anchor==="custom" ? "drag password box in preview" : "click to enable custom"; color: Color.foreground; opacity: 0.7; font.pixelSize: Style.font.caption }
-              MouseArea { anchors.fill: parent; onClicked: root.updatePos("custom", root.pos.offsetX, root.pos.offsetY) }
+              Text { id: hintText; anchors.centerIn: parent; text: "Click or drag in preview to place"; color: Color.foreground; font.pixelSize: 10; opacity: 0.85 }
             }
           }
 
-          RowLayout {
+          // --- improved positioning ---
+          ColumnLayout {
             Layout.fillWidth: true
             spacing: 6
-            Text { text: "Offset X"; color: Color.foreground; font.pixelSize: Style.font.caption }
-            Rectangle {
-              Layout.fillWidth: true; height: 28; radius: Style.cornerRadius
-              color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-              TextInput { id: ox; anchors.fill: parent; anchors.margins: 6; text: String(root.pos.offsetX); color: Color.foreground; font.pixelSize: Style.font.bodySmall; onAccepted: root.updatePos(root.pos.anchor, parseInt(text)||0, root.pos.offsetY) }
+
+            RowLayout {
+              Layout.fillWidth: true
+              Text { text: "Password position"; color: Color.foreground; font.pixelSize: Style.font.bodySmall; font.weight: Font.DemiBold; opacity: 0.9 }
+              Item { Layout.fillWidth: true }
+              Text { text: root.pos.anchor==="custom" ? "Custom  " + root.pos.offsetX + "," + root.pos.offsetY : root.pos.anchor; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
+              Rectangle {
+                width: 44; height: 22; radius: 11
+                color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                Text { anchors.centerIn: parent; text: "↺"; color: Color.foreground; font.pixelSize: 11 }
+                MouseArea { anchors.fill: parent; onClicked: root.updatePos("center",0,0) }
+              }
             }
-            Text { text: "Y"; color: Color.foreground; font.pixelSize: Style.font.caption }
-            Rectangle {
-              Layout.fillWidth: true; height: 28; radius: Style.cornerRadius
-              color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-              TextInput { id: oy; anchors.fill: parent; anchors.margins: 6; text: String(root.pos.offsetY); color: Color.foreground; font.pixelSize: Style.font.bodySmall; onAccepted: root.updatePos(root.pos.anchor, root.pos.offsetX, parseInt(text)||0) }
+
+            // visual anchor picker + live mini preview
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 10
+
+              // 3x3 picker with live indicator
+              Rectangle {
+                width: 108; height: 108; radius: Style.cornerRadius
+                color: Util.alpha(Color.background,0.4)
+                border.color: Color.imagePicker.unselectedBorder
+                border.width: 1
+                clip: true
+
+                GridLayout {
+                  anchors.fill: parent
+                  anchors.margins: 6
+                  columns: 3; rows: 3
+                  columnSpacing: 4; rowSpacing: 4
+                  Repeater {
+                    model: [
+                      {a:"topLeft", x:0, y:0}, {a:"top", x:1, y:0}, {a:"topRight", x:2, y:0},
+                      {a:"centerLeft", x:0, y:1}, {a:"center", x:1, y:1}, {a:"centerRight", x:2, y:1},
+                      {a:"bottomLeft", x:0, y:2}, {a:"bottom", x:1, y:2}, {a:"bottomRight", x:2, y:2}
+                    ]
+                    delegate: Rectangle {
+                      required property var modelData
+                      Layout.fillWidth: true; Layout.fillHeight: true
+                      radius: 6
+                      color: root.pos.anchor===modelData.a ? Color.accent : Util.alpha(Color.background,0.65)
+                      border.color: root.pos.anchor===modelData.a ? Color.accent : Util.alpha(Color.foreground,0.15)
+                      border.width: 1
+                      // dot for anchor
+                      Rectangle {
+                        width: 6; height: 6; radius: 3
+                        color: root.pos.anchor===modelData.a ? Color.background : Util.alpha(Color.foreground,0.45)
+                        anchors.centerIn: parent
+                      }
+                      // hover crosshair
+                      Rectangle {
+                        anchors.fill: parent; radius: 6
+                        color: "transparent"
+                        border.color: Util.alpha(Color.accent,0.0)
+                      }
+                      MouseArea { anchors.fill: parent; hoverEnabled: true; onEntered: parent.border.color = Util.alpha(Color.accent,0.5); onExited: parent.border.color = Util.alpha(Color.foreground,0.15); onClicked: root.updatePos(modelData.a,0,0) }
+                    }
+                  }
+                }
+                // center highlight ring
+                Rectangle {
+                  width: 36; height: 36; radius: 8
+                  color: "transparent"
+                  border.color: Util.alpha(Color.accent,0.9)
+                  border.width: root.pos.anchor==="center" ? 1.5 : 0
+                  anchors.centerIn: parent
+                }
+              }
+
+              ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Text { text: "Click a corner to snap, or enable free placement:"; color: Color.foreground; opacity: 0.55; font.pixelSize: Style.font.caption; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+
+                Rectangle {
+                  Layout.fillWidth: true; height: 32; radius: Style.cornerRadius
+                  color: root.pos.anchor==="custom" ? Color.accent : Util.alpha(Color.background,0.55)
+                  border.color: root.pos.anchor==="custom" ? Color.accent : Color.imagePicker.unselectedBorder
+                  border.width: 1
+                  RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10; anchors.rightMargin: 10
+                    spacing: 8
+                    Text { text: root.pos.anchor==="custom" ? "●  Free drag enabled" : "○  Free drag"; color: root.pos.anchor==="custom" ? Color.background : Color.foreground; font.pixelSize: Style.font.bodySmall; font.weight: Font.DemiBold }
+                    Item { Layout.fillWidth: true }
+                    Text { text: root.pos.anchor==="custom" ? "click preview to place" : "click to enable"; color: root.pos.anchor==="custom" ? Util.alpha(Color.background,0.8) : Util.alpha(Color.foreground,0.6); font.pixelSize: Style.font.caption }
+                  }
+                  MouseArea { anchors.fill: parent; onClicked: root.updatePos("custom", root.pos.offsetX, root.pos.offsetY) }
+                }
+
+                Text { text: "Tip: drag the password box directly in the preview above. Hold for pixel-nudge with arrow keys."; color: Color.foreground; opacity: 0.42; font.pixelSize: 10; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+              }
             }
+
+            // click-to-place + nudge + offsets
             Rectangle {
-              width: 56; height: 28; radius: Style.cornerRadius; color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
-              Text { anchors.centerIn: parent; text: "↺"; color: Color.foreground }
-              MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, 0, 0) }
+              Layout.fillWidth: true; height: 36; radius: Style.cornerRadius
+              color: Util.alpha(Color.background,0.35)
+              border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.6)
+              border.width: 1
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 8; anchors.rightMargin: 8
+                spacing: 6
+                Text { text: "↔ X"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+                Rectangle {
+                  Layout.preferredWidth: 72; Layout.fillHeight: false; height: 24; radius: 6
+                  color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                  RowLayout { anchors.fill: parent; spacing: 0
+                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX-5, root.pos.offsetY) } }
+                    TextInput { id: ox2; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(root.pos.offsetX); color: Color.foreground; font.pixelSize: Style.font.bodySmall; onAccepted: root.updatePos(root.pos.anchor, parseInt(text)||0, root.pos.offsetY) }
+                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX+5, root.pos.offsetY) } }
+                  }
+                }
+                Text { text: "↕ Y"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
+                Rectangle {
+                  Layout.preferredWidth: 72; Layout.fillHeight: false; height: 24; radius: 6
+                  color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                  RowLayout { anchors.fill: parent; spacing: 0
+                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY-5) } }
+                    TextInput { id: oy2; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(root.pos.offsetY); color: Color.foreground; font.pixelSize: Style.font.bodySmall; onAccepted: root.updatePos(root.pos.anchor, root.pos.offsetX, parseInt(text)||0) }
+                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY+5) } }
+                  }
+                }
+                Item { Layout.fillWidth: true }
+                Rectangle {
+                  width: 32; height: 24; radius: 6
+                  color: Util.alpha(Color.background,0.6); border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                  Text { anchors.centerIn: parent; text: "⟲"; color: Color.foreground; font.pixelSize: 12 }
+                  MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor,0,0) }
+                }
+              }
+              // arrow nudge
+              Keys.onPressed: function(e){
+                if(e.key===Qt.Key_Left){ root.updatePos(root.pos.anchor, root.pos.offsetX-1, root.pos.offsetY); e.accepted=true }
+                else if(e.key===Qt.Key_Right){ root.updatePos(root.pos.anchor, root.pos.offsetX+1, root.pos.offsetY); e.accepted=true }
+                else if(e.key===Qt.Key_Up){ root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY-1); e.accepted=true }
+                else if(e.key===Qt.Key_Down){ root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY+1); e.accepted=true }
+              }
+              focus: true
             }
+
+            Text { text: "Click anywhere in preview to place (in Free drag)."; color: Util.alpha(Color.accent,0.85); font.pixelSize: 10; visible: root.pos.anchor==="custom"; opacity: 0.9 }
           }
 
           // audio toggle
