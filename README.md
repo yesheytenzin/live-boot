@@ -15,7 +15,7 @@ Fork of the `live-wallpaper` pattern, but for boot only (`live-boot` id).
 2. Open **Style → Boot Background** (or run `~/.config/omarchy/plugins/live-boot/live-boot.sh`).
 3. Pick a video, choose the preview resolution, drag the logo and password independently, resize the password field, then **Apply to Boot**.
 
-Next reboot either loops video behind the login or plays it once before revealing the logo and password, depending on the selected reveal mode. If sound is enabled, audio plays at SDDM when the greeter has a PipeWire/Pulse session.
+Next reboot either loops video behind the login or plays it once before revealing the logo and password, depending on the selected reveal mode. If sound is enabled, audio plays at SDDM when the greeter has a PipeWire/Pulse session. Applying a boot theme automatically preserves and disables SDDM autologin so the greeter is actually shown.
 
 ## Features
 
@@ -32,7 +32,7 @@ Next reboot either loops video behind the login or plays it once before revealin
 - End-frame alignment freezes the final decoded frame; hide the official logo when text is baked into the video and place only the password below it
 - Live preview in overlay: `video → password` transition WYSIWYG
 - Keeps `background.jpg` poster as fallback if `QtMultimedia` missing
-- Restores stock SDDM on `--uninstall` or `--clear`
+- Restores stock SDDM and the previous autologin configuration on `--uninstall` or `--clear`
 
 ## Install
 
@@ -69,6 +69,8 @@ State in `~/.local/state/omarchy/live-boot/config.json` (`video`, `poster`, `pos
 PLUGIN_DIR="$HOME/.config/omarchy/plugins/live-boot"
 omarchy plugin validate "$PLUGIN_DIR"
 bash -n "$PLUGIN_DIR/live-boot.sh"
+bash -n "$PLUGIN_DIR/setup-sddm-login.sh"
+"$PLUGIN_DIR/setup-sddm-login.sh" --status
 ```
 
 Files:
@@ -76,7 +78,7 @@ Files:
 - `manifest.json` — `service` + `overlay` (`keepLoaded:true`)
 - `Service.qml` — watches config, IPC `live-boot` (`setVideoWithAudio`/`setAudio`/`setPosition`)
 - `Overlay.qml` — grid + preview + 9-grid/custom position + audio toggle (auto-detect via `ffprobe`)
-- `live-boot.sh` — discovery, thumbs, `has_audio_track()`, `pkexec cp` to `/usr/share/sddm/themes/omarchy/`
+- `live-boot.sh` — discovery, thumbs, `has_audio_track()`, `pkexec cp` to `/usr/share/sddm/themes/omarchy/`; `setup-sddm-login.sh` safely disables/restores SDDM autologin
 - `assets/Main.qml.tpl` — SDDM template with `MediaPlayer + AudioOutput { muted: !audioEnabled }`
 
 ## SDDM notes

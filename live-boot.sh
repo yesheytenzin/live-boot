@@ -13,6 +13,7 @@ readonly sddm_video="$sddm_theme_dir/background.mp4"
 readonly sddm_poster="$sddm_theme_dir/background.jpg"
 readonly sddm_main="$sddm_theme_dir/Main.qml"
 readonly sddm_main_backup="$sddm_theme_dir/Main.qml.live-boot.bak"
+readonly login_setup="$HOME/.config/omarchy/plugins/$plugin_id/setup-sddm-login.sh"
 
 mkdir -p "$state_dir" "$cache_dir"
 
@@ -157,6 +158,8 @@ sync_sddm() {
     || sudo bash -c "cp '$tmp_video_dest' '$sddm_video'; cp '$tmp_poster_dest' '$sddm_poster'; cp '$tmp_main' '$sddm_main'; chmod 644 '$sddm_video' '$sddm_poster' '$sddm_main'" 2>/dev/null \
     || { cp "$tmp_video_dest" "$sddm_video" 2>/dev/null; cp "$tmp_poster_dest" "$sddm_poster" 2>/dev/null; cp "$tmp_main" "$sddm_main" 2>/dev/null; }
 
+  [[ ! -x $login_setup ]] || "$login_setup" --disable || echo "live-boot: could not disable SDDM autologin" >&2
+
   rm -f "$tmp_main" "$tmp_poster_dest" "$tmp_video_dest"
   printf '%s\n' "$poster" >"$expected_state"
 }
@@ -173,6 +176,7 @@ clear_boot() {
   printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"sizesCustomized":false,"positionsCustomized":false,"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250,"linkPasswordToLogo":true,"passwordGap":40}\n' >"$config_path"
   rm -f "$video_state" "$poster_state" "$expected_state"
   sync_sddm
+  [[ ! -x $login_setup ]] || "$login_setup" --restore || echo "live-boot: could not restore SDDM autologin" >&2
 }
 
 ensure_menu_override() {
