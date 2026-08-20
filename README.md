@@ -27,9 +27,9 @@ Next reboot either loops video behind the login or plays it once before revealin
 - Independent logo/password dragging and resizing (password up to 1600×320, logo up to 1200×400)
 - WYSIWYG preview automatically detects the monitor hosting the picker
 - Default size/position actions reproduce Omarchy's stock responsive logo and fixed 335×48 password row
-- Automatic defaults migrate legacy sizes once; later manual logo/password size edits are preserved
+- Automatic defaults remain active until logo/password sizes or positions are manually changed
 - Optional after-video reveal transition with live replay/end-frame alignment preview, fade timing, and password delay controls
-- End-frame alignment mode matches the official logo over moving baked text and links the password 40px below
+- End-frame alignment freezes the final decoded frame, stretches the official logo for exact matching, and links the password 40px below
 - Live preview in overlay: `video → password` transition WYSIWYG
 - Keeps `background.jpg` poster as fallback if `QtMultimedia` missing
 - Restores stock SDDM on `--uninstall` or `--clear`
@@ -61,7 +61,7 @@ omarchy plugin update live-boot
 omarchy plugin remove live-boot
 ```
 
-State in `~/.local/state/omarchy/live-boot/config.json` (`video`, `poster`, `pos`, `logoPos`, `fieldSize`, `showLogo`, `previewRes`, `audioEnabled`), cache in `~/.cache/omarchy/live-boot/`.
+State in `~/.local/state/omarchy/live-boot/config.json` (`video`, `poster`, `pos`, `logoPos`, `fieldSize`, `showLogo`, `previewRes`, `audioEnabled`, `sizesCustomized`, `positionsCustomized`), cache in `~/.cache/omarchy/live-boot/`.
 
 ## Development
 

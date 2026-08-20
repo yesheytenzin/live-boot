@@ -35,7 +35,10 @@ Rectangle {
     revealStarted = true
     fallbackTimer.stop()
     endSafety.stop()
-    if (revealMode === "video-end" && player.playbackState === MediaPlayer.PlayingState) player.pause()
+    if (revealMode === "video-end") {
+      if (player.duration > 0) player.setPosition(Math.max(0, Math.min(player.duration, maxVideoDuration) - 1))
+      player.pause()
+    }
     logoRevealed = true
     if (passwordDelay <= 0) showPassword()
     else passwordRevealTimer.restart()
@@ -99,9 +102,11 @@ Rectangle {
         }
       }
       onPositionChanged: {
-        if (position < root.maxVideoDuration) return
-        if (root.revealMode === "video-end") root.revealLogin()
-        else setPosition(0)
+        if (root.revealMode === "video-end") {
+          if (duration > 0 && position >= Math.max(0, Math.min(duration, root.maxVideoDuration) - 50)) root.revealLogin()
+        } else if (position >= root.maxVideoDuration) {
+          setPosition(0)
+        }
       }
       onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) root.revealLogin()
       onErrorOccurred: function(es, s) { console.warn("live-boot SDDM player error", es, s); root.revealLogin() }
@@ -167,7 +172,7 @@ Rectangle {
     Image {
       anchors.fill: parent
       source: "logo.png"
-      fillMode: Image.PreserveAspectFit
+      fillMode: Image.Stretch
       opacity: 0.95
     }
   }

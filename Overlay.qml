@@ -29,6 +29,7 @@ Item {
   property var logoPos: ({ offsetX: 0, offsetY: -44 })
   property var logoSize: ({ width: 800, height: 188 })
   property bool sizesCustomized: false
+  property bool positionsCustomized: false
   property var previewRes: ({ width: 1920, height: 1080 })
   property var detectedRes: ({ width: 0, height: 0 })
   property string themeDir: "/usr/share/sddm/themes/omarchy"
@@ -100,6 +101,7 @@ Item {
     if (args.logoPos && typeof args.logoPos === "object") logoPos = { offsetX: parseInt(args.logoPos.offsetX)||0, offsetY: parseInt(args.logoPos.offsetY)||0 }
     if (args.logoSize && typeof args.logoSize === "object") logoSize = { width: Math.max(80,Math.min(1200,args.logoSize.width||800)), height: Math.max(20,Math.min(400,args.logoSize.height||188)) }
     sizesCustomized = args.sizesCustomized === true
+    positionsCustomized = args.positionsCustomized === true
     if (args.previewRes && typeof args.previewRes === "object") previewRes = { width: parseInt(args.previewRes.width)||1920, height: parseInt(args.previewRes.height)||1080 }
     if (args.detectedRes && typeof args.detectedRes === "object") detectedRes = { width: parseInt(args.detectedRes.width)||0, height: parseInt(args.detectedRes.height)||0 }
     if (typeof args.themeDir === "string" && args.themeDir) themeDir = String(args.themeDir)
@@ -140,6 +142,7 @@ Item {
         if (cfg.logoPos && typeof cfg.logoPos === "object") root.logoPos = { offsetX: parseInt(cfg.logoPos.offsetX)||0, offsetY: parseInt(cfg.logoPos.offsetY)||0 }
         if (cfg.logoSize && typeof cfg.logoSize === "object") root.logoSize = { width: Math.max(80,Math.min(1200,cfg.logoSize.width||800)), height: Math.max(20,Math.min(400,cfg.logoSize.height||188)) }
         root.sizesCustomized = cfg.sizesCustomized === true
+        root.positionsCustomized = cfg.positionsCustomized === true
         if (cfg.previewRes && typeof cfg.previewRes === "object") {
           root.previewRes = { width: parseInt(cfg.previewRes.width)||1920, height: parseInt(cfg.previewRes.height)||1080 }
         }
@@ -148,6 +151,7 @@ Item {
         if (cfg.passwordDelay !== undefined) root.passwordDelay = Math.max(0, Math.min(3000, parseInt(cfg.passwordDelay)||0))
         root.linkPasswordToLogo = cfg.linkPasswordToLogo !== false
         if (cfg.passwordGap !== undefined) root.passwordGap = Math.max(0, Math.min(300, parseInt(cfg.passwordGap)||0))
+        if (!root.positionsCustomized) root.resetDefaultPositions()
         if (cfg.video && !root.previewVideo) {
           root.previewVideo = String(cfg.video)
           root.previewPoster = String(cfg.poster || "")
@@ -193,7 +197,10 @@ Item {
     previewRevealStarted = true
     previewFallbackTimer.stop()
     previewEndSafety.stop()
-    if (revealMode === "video-end" && previewPlayer.playbackState === MediaPlayer.PlayingState) previewPlayer.pause()
+    if (revealMode === "video-end") {
+      if (previewPlayer.duration > 0) previewPlayer.setPosition(Math.max(0, Math.min(previewPlayer.duration, maxVideoDuration) - 1))
+      previewPlayer.pause()
+    }
     previewLogoRevealed = true
     if (passwordDelay <= 0) previewPasswordRevealed = true
     else previewPasswordTimer.restart()
@@ -218,13 +225,14 @@ Item {
 
   function applySelected() {
     if (!selectedPath) return
-    var payload = JSON.stringify({ video: selectedPath, poster: previewPoster, audioEnabled: audioEnabled, pos: pos, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay, linkPasswordToLogo: linkPasswordToLogo, passwordGap: passwordGap })
+    var payload = JSON.stringify({ video: selectedPath, poster: previewPoster, audioEnabled: audioEnabled, pos: pos, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, positionsCustomized: positionsCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay, linkPasswordToLogo: linkPasswordToLogo, passwordGap: passwordGap })
     Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot applySettings " + Util.shellQuote(payload) + " >/dev/null 2>&1 &"])
     close()
   }
 
   function updatePos(anchor, ox, oy) {
     linkPasswordToLogo = false
+    positionsCustomized = true
     pos = { anchor: anchor, offsetX: ox, offsetY: oy }
   }
   function updateFieldSize(w, h) {
@@ -233,14 +241,14 @@ Item {
     syncLinkedPassword()
   }
   function updateShowLogo(v) { showLogo = !!v }
-  function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy }; syncLinkedPassword() }
+  function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy }; positionsCustomized = true; syncLinkedPassword() }
   function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) }; sizesCustomized = true; syncLinkedPassword() }
   function syncLinkedPassword() {
     if (!linkPasswordToLogo) return
     pos = { anchor: "custom", offsetX: Math.round(logoPos.offsetX), offsetY: Math.round(logoPos.offsetY + logoSize.height/2 + passwordGap + fieldSize.height/2) }
   }
-  function setPasswordLink(enabled) { linkPasswordToLogo = !!enabled; syncLinkedPassword() }
-  function updatePasswordGap(value) { passwordGap = Math.max(0, Math.min(300, value)); linkPasswordToLogo = true; syncLinkedPassword() }
+  function setPasswordLink(enabled) { linkPasswordToLogo = !!enabled; positionsCustomized = true; syncLinkedPassword() }
+  function updatePasswordGap(value) { passwordGap = Math.max(0, Math.min(300, value)); linkPasswordToLogo = true; positionsCustomized = true; syncLinkedPassword() }
   function logoWidthFor(screenWidth) { return Math.round(Math.min(800, screenWidth * 0.8)) }
   function logoHeightFor(screenWidth) { return Math.round(logoWidthFor(screenWidth) * 188 / 800) }
   function defaultLogoWidth() { return logoWidthFor(previewRes.width) }
@@ -251,6 +259,7 @@ Item {
     linkPasswordToLogo = true
     passwordGap = 40
     syncLinkedPassword()
+    positionsCustomized = false
   }
   function resetDefaultSizes() {
     updateLogoSize(defaultLogoWidth(), defaultLogoHeight())
@@ -267,11 +276,12 @@ Item {
   function alignEndFrame() {
     revealMode = "video-end"
     endAlignMode = true
-    setPasswordLink(true)
+    linkPasswordToLogo = true
+    syncLinkedPassword()
     previewPasswordTimer.stop()
     previewFallbackTimer.stop()
     previewEndSafety.stop()
-    previewPlayer.setPosition(Math.max(0, Math.min(previewPlayer.duration || maxVideoDuration, maxVideoDuration) - 50))
+    previewPlayer.setPosition(Math.max(0, Math.min(previewPlayer.duration || maxVideoDuration, maxVideoDuration) - 1))
     endAlignTimer.restart()
   }
   function detectScreen() {
@@ -281,7 +291,8 @@ Item {
 
     previewRes = { width: w, height: h }
     if (!sizesCustomized) resetDefaultSizes()
-    syncLinkedPassword()
+    if (!positionsCustomized) resetDefaultPositions()
+    else syncLinkedPassword()
   }
 
   // position helpers for preview
@@ -523,9 +534,11 @@ Item {
                 }
               }
               onPositionChanged: {
-                if (position < root.maxVideoDuration) return
-                if (root.revealMode === "video-end") root.revealPreview()
-                else setPosition(0)
+                if (root.revealMode === "video-end") {
+                  if (duration > 0 && position >= Math.max(0, Math.min(duration, root.maxVideoDuration) - 50)) root.revealPreview()
+                } else if (position >= root.maxVideoDuration) {
+                  setPosition(0)
+                }
               }
               onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) root.revealPreview()
               onErrorOccurred: { console.warn("preview error", errorString); root.revealPreview() }
@@ -579,7 +592,7 @@ Item {
               Image {
                 anchors.fill: parent
                 source: root.fileUrl(root.themeDir + "/logo.png")
-                fillMode: Image.PreserveAspectFit
+                fillMode: Image.Stretch
                 opacity: 0.95
                 asynchronous: true
               }
@@ -887,7 +900,7 @@ Item {
                     Layout.preferredWidth: 82; Layout.preferredHeight: 24; radius: 6
                     color: Util.alpha(Color.background,0.55); border.color: Color.imagePicker.unselectedBorder; border.width: 1
                     Text { anchors.centerIn: parent; text: "All defaults"; color: Color.foreground; font.pixelSize: Style.font.caption }
-                    MouseArea { anchors.fill: parent; onClicked: { root.resetDefaultSizes(); root.updateLogoPos(0,-44) } }
+                    MouseArea { anchors.fill: parent; onClicked: { root.resetDefaultSizes(); root.resetDefaultPositions() } }
                   }
                 }
                 Text { text: "SIZE"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
@@ -917,7 +930,7 @@ Item {
                   Text { text: "POSITION"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
                   Item { Layout.fillWidth: true }
                   Text { text: root.logoPos.offsetX + ", " + root.logoPos.offsetY; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
-                  Rectangle { Layout.preferredWidth: 48; Layout.preferredHeight: 22; radius: 6; color: Util.alpha(Color.background,0.55); border.color: Color.imagePicker.unselectedBorder; border.width: 1; Text { anchors.centerIn: parent; text: "Reset"; color: Color.foreground; font.pixelSize: 9 } MouseArea { anchors.fill: parent; onClicked: root.updateLogoPos(0,-44) } }
+                  Rectangle { Layout.preferredWidth: 48; Layout.preferredHeight: 22; radius: 6; color: Util.alpha(Color.background,0.55); border.color: Color.imagePicker.unselectedBorder; border.width: 1; Text { anchors.centerIn: parent; text: "Reset"; color: Color.foreground; font.pixelSize: 9 } MouseArea { anchors.fill: parent; onClicked: root.resetDefaultPositions() } }
                 }
               }
             }
