@@ -240,15 +240,24 @@ Item {
     sizesCustomized = true
     syncLinkedPassword()
   }
-  function updateShowLogo(v) { showLogo = !!v }
+  function updateShowLogo(v) {
+    showLogo = !!v
+    if (!showLogo) linkPasswordToLogo = false
+  }
   function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy }; positionsCustomized = true; syncLinkedPassword() }
   function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) }; sizesCustomized = true; syncLinkedPassword() }
   function syncLinkedPassword() {
     if (!linkPasswordToLogo) return
     pos = { anchor: "custom", offsetX: Math.round(logoPos.offsetX), offsetY: Math.round(logoPos.offsetY + logoSize.height/2 + passwordGap + fieldSize.height/2) }
   }
-  function setPasswordLink(enabled) { linkPasswordToLogo = !!enabled; positionsCustomized = true; syncLinkedPassword() }
-  function updatePasswordGap(value) { passwordGap = Math.max(0, Math.min(300, value)); linkPasswordToLogo = true; positionsCustomized = true; syncLinkedPassword() }
+  function setPasswordLink(enabled) { linkPasswordToLogo = showLogo && !!enabled; positionsCustomized = true; syncLinkedPassword() }
+  function updatePasswordGap(value) {
+    if (!showLogo) return
+    passwordGap = Math.max(0, Math.min(300, value))
+    linkPasswordToLogo = true
+    positionsCustomized = true
+    syncLinkedPassword()
+  }
   function logoWidthFor(screenWidth) { return Math.round(Math.min(800, screenWidth * 0.8)) }
   function logoHeightFor(screenWidth) { return Math.round(logoWidthFor(screenWidth) * 188 / 800) }
   function defaultLogoWidth() { return logoWidthFor(previewRes.width) }
@@ -256,9 +265,10 @@ Item {
   function defaultPasswordY() { return Math.round(defaultLogoHeight() / 2 + 20) }
   function resetDefaultPositions() {
     logoPos = { offsetX: 0, offsetY: -44 }
-    linkPasswordToLogo = true
+    linkPasswordToLogo = showLogo
     passwordGap = 40
-    syncLinkedPassword()
+    if (linkPasswordToLogo) syncLinkedPassword()
+    else pos = { anchor: "custom", offsetX: 0, offsetY: defaultPasswordY() }
     positionsCustomized = false
   }
   function resetDefaultSizes() {
@@ -276,8 +286,8 @@ Item {
   function alignEndFrame() {
     revealMode = "video-end"
     endAlignMode = true
-    linkPasswordToLogo = true
-    syncLinkedPassword()
+    if (showLogo) { linkPasswordToLogo = true; syncLinkedPassword() }
+    else linkPasswordToLogo = false
     previewPasswordTimer.stop()
     previewFallbackTimer.stop()
     previewEndSafety.stop()
@@ -581,7 +591,6 @@ Item {
               height: root.logoSize.height * preview.displayScale
               x: preview.width/2 - width/2 + root.logoPos.offsetX * preview.displayScale
               y: preview.height/2 - height/2 + root.logoPos.offsetY * preview.displayScale
-              visible: root.showLogo
               opacity: root.previewLogoRevealed ? (root.endAlignMode ? 0.55 : 1) : 0
               Behavior on opacity { NumberAnimation { duration: root.revealMode === "video-end" ? 80 : root.transitionDuration; easing.type: Easing.OutCubic } }
               Behavior on x { enabled: !root.logoDragging; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
@@ -862,7 +871,7 @@ Item {
                 }
               }
               Item { Layout.fillWidth: true }
-              Text { text: root.endAlignMode ? "55% overlay: match the final text edges" : (root.revealMode === "video-end" ? "Click preview to reveal" : "Reveal on first frame"); color: Color.foreground; opacity: 0.4; font.pixelSize: 9 }
+              Text { text: root.endAlignMode ? (root.showLogo ? "55% overlay: match the final text edges" : "Frozen final frame: drag password below the baked text") : (root.revealMode === "video-end" ? "Click preview to reveal" : "Reveal on first frame"); color: Color.foreground; opacity: 0.4; font.pixelSize: 9 }
             }
             }
           }
@@ -876,6 +885,7 @@ Item {
             spacing: 8
 
             Rectangle {
+              visible: root.showLogo
               Layout.fillWidth: true; Layout.fillHeight: true; radius: 9
               color: Util.alpha(Color.background,0.32); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.7); border.width: 1
               ColumnLayout {
@@ -947,10 +957,16 @@ Item {
                     Text { text: "PASSWORD"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
                     Item { Layout.fillWidth: true }
                     Rectangle {
-                      Layout.preferredWidth: 58; Layout.preferredHeight: 20; radius: 5
+                      Layout.preferredWidth: 58; visible: root.showLogo; Layout.preferredHeight: 20; radius: 5
                       color: root.linkPasswordToLogo ? Util.alpha(Color.accent,0.22) : "transparent"; border.color: root.linkPasswordToLogo ? Color.accent : Color.imagePicker.unselectedBorder; border.width: 1
                       Text { anchors.centerIn: parent; text: root.linkPasswordToLogo ? "LINKED" : (root.pos.anchor === "custom" ? "FREE" : root.pos.anchor.toUpperCase()); color: Color.foreground; font.pixelSize: 8; opacity: 0.8 }
                       MouseArea { anchors.fill: parent; onClicked: root.setPasswordLink(!root.linkPasswordToLogo) }
+                    }
+                    Rectangle {
+                      visible: !root.showLogo; Layout.preferredWidth: 66; Layout.preferredHeight: 20; radius: 5
+                      color: "transparent"; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                      Text { anchors.centerIn: parent; text: "ADD LOGO"; color: Color.foreground; font.pixelSize: 8; opacity: 0.7 }
+                      MouseArea { anchors.fill: parent; onClicked: root.updateShowLogo(true) }
                     }
                   }
                   Text { text: "SIZE"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
@@ -979,8 +995,8 @@ Item {
                     Layout.fillWidth: true
                     Text { text: "OFFSET"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
                     Item { Layout.fillWidth: true }
-                    Text { text: "GAP"; color: Color.foreground; font.pixelSize: 8; opacity: 0.4 }
-                    Rectangle { Layout.preferredWidth: 56; Layout.preferredHeight: 20; radius: 5; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                    Text { visible: root.showLogo; text: "GAP"; color: Color.foreground; font.pixelSize: 8; opacity: 0.4 }
+                    Rectangle { visible: root.showLogo; Layout.preferredWidth: 56; Layout.preferredHeight: 20; radius: 5; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
                       RowLayout { anchors.fill: parent; spacing: 0
                         Rectangle { Layout.preferredWidth: 17; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "-"; color: Color.foreground; font.pixelSize: 9 } MouseArea { anchors.fill: parent; onClicked: root.updatePasswordGap(root.passwordGap-5) } }
                         Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: root.passwordGap; color: Color.foreground; font.pixelSize: 9 }

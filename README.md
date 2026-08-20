@@ -29,7 +29,7 @@ Next reboot either loops video behind the login or plays it once before revealin
 - Default size/position actions reproduce Omarchy's stock responsive logo and fixed 335×48 password row
 - Automatic defaults remain active until logo/password sizes or positions are manually changed
 - Optional after-video reveal transition with live replay/end-frame alignment preview, fade timing, and password delay controls
-- End-frame alignment freezes the final decoded frame, stretches the official logo for exact matching, and links the password 40px below
+- End-frame alignment freezes the final decoded frame; hide the official logo when text is baked into the video and place only the password below it
 - Live preview in overlay: `video → password` transition WYSIWYG
 - Keeps `background.jpg` poster as fallback if `QtMultimedia` missing
 - Restores stock SDDM on `--uninstall` or `--clear`
