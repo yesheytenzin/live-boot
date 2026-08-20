@@ -45,6 +45,7 @@ Item {
   property bool logoDragging: false
   property bool logoResizing: false
   property bool resizing: false
+  readonly property int maxVideoDuration: 10000
 
   readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || home + "/.local/state") + "/omarchy/live-boot"
   readonly property string configPath: stateDir + "/config.json"
@@ -484,9 +485,14 @@ Item {
               loops: root.revealMode === "video-end" ? 1 : MediaPlayer.Infinite
               onDurationChanged: {
                 if (root.revealMode === "video-end" && duration > 0) {
-                  previewEndSafety.interval = duration + 3000
+                  previewEndSafety.interval = Math.min(duration, root.maxVideoDuration) + 3000
                   previewEndSafety.restart()
                 }
+              }
+              onPositionChanged: {
+                if (position < root.maxVideoDuration) return
+                if (root.revealMode === "video-end") root.revealPreview()
+                else setPosition(0)
               }
               onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) root.revealPreview()
               onErrorOccurred: { console.warn("preview error", errorString); root.revealPreview() }
@@ -768,8 +774,8 @@ Item {
               }
               Item { Layout.fillWidth: true }
               Text {
-                text: previewPlayer.duration > 0 ? Math.round(previewPlayer.duration/100)/10 + "s" + (previewPlayer.duration > 30000 && root.revealMode === "video-end" ? " long" : "") : ""
-                color: previewPlayer.duration > 30000 && root.revealMode === "video-end" ? "#f5a97f" : Color.foreground
+                text: previewPlayer.duration > root.maxVideoDuration ? "10s cap" : (previewPlayer.duration > 0 ? Math.round(previewPlayer.duration/100)/10 + "s" : "")
+                color: previewPlayer.duration > root.maxVideoDuration ? Color.accent : Color.foreground
                 opacity: 0.65
                 font.pixelSize: Style.font.caption
               }

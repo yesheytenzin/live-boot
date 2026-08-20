@@ -21,6 +21,7 @@ Next reboot either loops video behind the login or plays it once before revealin
 
 - Boot-only: patches `/usr/share/sddm/themes/omarchy/Main.qml` via `pkexec`/`sudo` (template `assets/Main.qml.tpl` with `{{anchor}}` `{{offsetX}}` `{{offsetY}}` `{{audioEnabled}}`)
 - Supports MP4, MKV, WebM, MOV, M4V
+- Limits boot playback to 10 seconds; longer sources are cached as trimmed boot-safe MP4 files
 - Generates thumbnails with existing `ffmpeg`, detects audio with `ffprobe`
 - **Audio toggle**: auto-enables when video has an audio stream; shows “No audio track” otherwise. Preview respects toggle via `AudioOutput { muted: !audioEnabled }`
 - Independent logo/password dragging and resizing (password up to 1600×320, logo up to 1200×400)

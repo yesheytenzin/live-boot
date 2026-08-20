@@ -21,6 +21,7 @@ Rectangle {
   property string revealMode: "{{revealMode}}"
   property int transitionDuration: {{transitionDuration}}
   property int passwordDelay: {{passwordDelay}}
+  readonly property int maxVideoDuration: 10000
   property bool revealStarted: false
   property bool logoRevealed: false
   property bool passwordRevealed: false
@@ -93,9 +94,14 @@ Rectangle {
       loops: root.revealMode === "video-end" ? 1 : MediaPlayer.Infinite
       onDurationChanged: {
         if (root.revealMode === "video-end" && duration > 0) {
-          endSafety.interval = duration + 3000
+          endSafety.interval = Math.min(duration, root.maxVideoDuration) + 3000
           endSafety.restart()
         }
+      }
+      onPositionChanged: {
+        if (position < root.maxVideoDuration) return
+        if (root.revealMode === "video-end") root.revealLogin()
+        else setPosition(0)
       }
       onMediaStatusChanged: if (mediaStatus === MediaPlayer.EndOfMedia) root.revealLogin()
       onErrorOccurred: function(es, s) { console.warn("live-boot SDDM player error", es, s); root.revealLogin() }

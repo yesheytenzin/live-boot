@@ -43,6 +43,28 @@ has_audio_track() {
   ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$1" 2>/dev/null | grep -q audio
 }
 
+boot_video_for() {
+  local media="$1" duration sig hash output tmp
+  duration=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$media" 2>/dev/null) || return 1
+  if ! awk -v duration="$duration" 'BEGIN { exit !(duration > 10) }'; then
+    printf '%s' "$media"
+    return 0
+  fi
+
+  sig=$(stat -Lc '%s:%Y' "$media" 2>/dev/null) || return 1
+  hash=$(printf 'boot-video-10s-v1:%s:%s' "$media" "$sig" | md5sum | cut -d ' ' -f 1)
+  output="$cache_dir/$hash.mp4"
+  if [[ ! -f $output ]]; then
+    tmp="$output.$$.mp4"
+    ffmpeg -nostdin -hide_banner -loglevel error -i "$media" -t 10 \
+      -map 0:v:0 -map "0:a:0?" -vf 'scale=trunc(iw/2)*2:trunc(ih/2)*2' \
+      -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p \
+      -c:a aac -b:a 192k -movflags +faststart -y "$tmp" || { rm -f "$tmp"; return 1; }
+    mv -f "$tmp" "$output"
+  fi
+  printf '%s' "$output"
+}
+
 ensure_config() {
   if [[ ! -f $config_path ]]; then
     printf '{"video":"","poster":"","pos":{"anchor":"custom","offsetX":0,"offsetY":114},"audioEnabled":false,"fieldSize":{"width":335,"height":48},"showLogo":true,"logoPos":{"offsetX":0,"offsetY":-44},"logoSize":{"width":800,"height":188},"sizesCustomized":false,"previewRes":{"width":1920,"height":1080},"revealMode":"first-frame","transitionDuration":700,"passwordDelay":250}\n' >"$config_path"
@@ -105,6 +127,9 @@ sync_sddm() {
     python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d['poster']=r'$poster'; open(p,'w').write(json.dumps(d,indent=2)+'\n')" 2>/dev/null || true
   fi
 
+  local boot_video
+  boot_video=$(boot_video_for "$video") || { echo "cannot prepare 10-second boot video" >&2; return 1; }
+
   local tpl="$HOME/.config/omarchy/plugins/$plugin_id/assets/Main.qml.tpl"
   local tmp_main
   tmp_main=$(mktemp)
@@ -114,7 +139,7 @@ sync_sddm() {
   tmp_video_dest=$(mktemp --suffix=.mp4)
 
   cp -f "$poster" "$tmp_poster_dest"
-  cp -f "$video" "$tmp_video_dest"
+  cp -f "$boot_video" "$tmp_video_dest"
 
   # render template if exists, else use sddm Main.qml with injected pos/size via sed
   if [[ -f $tpl ]]; then
