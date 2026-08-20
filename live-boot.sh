@@ -45,7 +45,7 @@ has_audio_track() {
 
 ensure_config() {
   if [[ ! -f $config_path ]]; then
-    printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false,"fieldSize":{"width":340,"height":56}}\n' >"$config_path"
+    printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false,"fieldSize":{"width":340,"height":56},"showLogo":true,"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
   fi
   # migrate legacy video/poster files into json if json empty
   local vid="" post=""
@@ -64,7 +64,7 @@ ensure_config() {
     printf '{"video":%s,"poster":%s,"pos":%s,"audioEnabled":%s}\n' "$(printf '%s' "$vid" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$(printf '%s' "$post" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')" "$pos_json" "$audio_json" >"$config_path"
   fi
   # ensure keys exist
-  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); d.setdefault('pos', {'anchor':'center','offsetX':0,'offsetY':0}); d.setdefault('fieldSize', {'width':340,'height':56}); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
+  python3 -c "import json,pathlib; p=pathlib.Path('$config_path'); d=json.load(open(p)); d.setdefault('audioEnabled', False); d.setdefault('pos', {'anchor':'center','offsetX':0,'offsetY':0}); d.setdefault('fieldSize', {'width':340,'height':56}); d.setdefault('showLogo', True); d.setdefault('previewRes', {'width':1920,'height':1080}); open(p,'w').write(json.dumps(d, indent=2)+'\n')" 2>/dev/null || true
 }
 
 load_pos() {
@@ -74,11 +74,12 @@ load_pos() {
 
 sync_sddm() {
   ensure_config
-  local video poster anchor ox oy audioEnabled audioMuted fieldW fieldH
+  local video poster anchor ox oy audioEnabled audioMuted fieldW fieldH showLogo
   video=$(python3 -c "import json; print(json.load(open('$config_path')).get('video',''))" 2>/dev/null || echo "")
   poster=$(python3 -c "import json; print(json.load(open('$config_path')).get('poster',''))" 2>/dev/null || echo "")
   audioEnabled=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
   if [[ $audioEnabled == "true" ]]; then audioMuted="false"; else audioMuted="true"; fi
+  showLogo=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('showLogo', True) else 'false')" 2>/dev/null || echo "true")
   fieldW=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('width',340))" 2>/dev/null || echo "340")
   fieldH=$(python3 -c "import json; d=json.load(open('$config_path')); print(d.get('fieldSize',{}).get('height',56))" 2>/dev/null || echo "56")
   read -r anchor ox oy <<<"$(load_pos)"
@@ -110,7 +111,7 @@ sync_sddm() {
 
   # render template if exists, else use sddm Main.qml with injected pos/size via sed
   if [[ -f $tpl ]]; then
-    sed -e "s/{{anchor}}/$anchor/g" -e "s/{{offsetX}}/$ox/g" -e "s/{{offsetY}}/$oy/g" -e "s/{{audioMuted}}/$audioMuted/g" -e "s/{{audioEnabled}}/$audioEnabled/g" -e "s/{{fieldWidth}}/$fieldW/g" -e "s/{{fieldHeight}}/$fieldH/g" "$tpl" >"$tmp_main"
+    sed -e "s/{{anchor}}/$anchor/g" -e "s/{{offsetX}}/$ox/g" -e "s/{{offsetY}}/$oy/g" -e "s/{{audioMuted}}/$audioMuted/g" -e "s/{{audioEnabled}}/$audioEnabled/g" -e "s/{{showLogo}}/$showLogo/g" -e "s/{{fieldWidth}}/$fieldW/g" -e "s/{{fieldHeight}}/$fieldH/g" "$tpl" >"$tmp_main"
   else
     cp -f "$OMARCHY_PATH/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "/usr/share/omarchy/default/sddm/omarchy/Main.qml" "$tmp_main" 2>/dev/null || cp -f "$sddm_main" "$tmp_main"
   fi
@@ -137,7 +138,7 @@ resume_live_boot() {
 }
 
 clear_boot() {
-  printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false,"fieldSize":{"width":340,"height":56}}\n' >"$config_path"
+  printf '{"video":"","poster":"","pos":{"anchor":"center","offsetX":0,"offsetY":0},"audioEnabled":false,"fieldSize":{"width":340,"height":56},"showLogo":true,"previewRes":{"width":1920,"height":1080}}\n' >"$config_path"
   rm -f "$video_state" "$poster_state" "$expected_state"
   sync_sddm
 }
@@ -197,6 +198,8 @@ user_dir="$HOME/.config/omarchy/backgrounds/$theme_name"
 current_video=$(python3 -c "import json; print(json.load(open('$config_path')).get('video',''))" 2>/dev/null || echo "")
 current_pos_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('pos',{'anchor':'center','offsetX':0,'offsetY':0})))" 2>/dev/null || echo '{"anchor":"center","offsetX":0,"offsetY":0}')
 current_size_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('fieldSize',{'width':340,'height':56})))" 2>/dev/null || echo '{"width":340,"height":56}')
+current_show_logo=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('showLogo', True) else 'false')" 2>/dev/null || echo "true")
+current_res_json=$(python3 -c "import json; d=json.load(open('$config_path')); import json as j; print(j.dumps(d.get('previewRes',{'width':1920,'height':1080})))" 2>/dev/null || echo '{"width":1920,"height":1080}')
 current_audio=$(python3 -c "import json; print('true' if json.load(open('$config_path')).get('audioEnabled') else 'false')" 2>/dev/null || echo "false")
 
 rows_file=$(mktemp)
@@ -229,7 +232,7 @@ if [[ ! -s $rows_file ]]; then
 fi
 
 rows_b64=$(base64 -w 0 <"$rows_file")
-payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"audioEnabled":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_audio")
+payload=$(printf '{"rowsB64":"%s","selected":%s,"pos":%s,"fieldSize":%s,"showLogo":%s,"previewRes":%s,"themeDir":"%s","audioEnabled":%s}' "$rows_b64" "$(printf '%s' "$current_video" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" "$current_pos_json" "$current_size_json" "$current_show_logo" "$current_res_json" "$sddm_theme_dir" "$current_audio")
 
 # summon overlay; keepLoaded overlay stays mounted
 if ! omarchy-shell shell summon live-boot "$payload" >/dev/null 2>&1; then

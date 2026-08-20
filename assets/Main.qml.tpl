@@ -15,6 +15,7 @@ Rectangle {
   property int offsetX: {{offsetX}}
   property int offsetY: {{offsetY}}
   property bool audioEnabled: {{audioEnabled}}
+  property bool showLogo: {{showLogo}}
   property int sessionIndex: {
     for (var i = 0; i < sessionModel.rowCount(); i++) {
       var name = (sessionModel.data(sessionModel.index(i, 0), Qt.DisplayRole) || "").toString()
@@ -118,6 +119,7 @@ Rectangle {
       Image {
         id: logo
         source: "logo.png"
+        visible: root.showLogo
         width: Math.min(sourceSize.width, 260)
         height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : 0
         fillMode: Image.PreserveAspectFit
