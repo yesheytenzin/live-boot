@@ -441,14 +441,15 @@ Item {
               MouseArea {
                 id: dragArea
                 anchors.fill: parent
-                anchors.rightMargin: 12 // leave corner for resize handle
-                anchors.bottomMargin: 12
+                anchors.rightMargin: 16
+                anchors.bottomMargin: 16
                 drag.target: root.pos.anchor === "custom" ? passWrap : undefined
                 drag.axis: Drag.XAndYAxis
-                drag.minimumX: -preview.width/2 + passWrap.width/2 + 8
-                drag.maximumX: preview.width/2 - passWrap.width/2 - 8
-                drag.minimumY: -preview.height/2 + passWrap.height/2 + 8
-                drag.maximumY: preview.height/2 - passWrap.height/2 - 8
+                drag.minimumX: 8
+                drag.maximumX: preview.width - passWrap.width - 8
+                drag.minimumY: 8
+                drag.maximumY: preview.height - passWrap.height - 8
+                drag.smoothed: false
                 cursorShape: root.pos.anchor==="custom" ? Qt.SizeAllCursor : Qt.ArrowCursor
                 enabled: root.pos.anchor==="custom"
                 onPressed: root.dragging = true
