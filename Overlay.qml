@@ -28,6 +28,7 @@ Item {
   property bool showLogo: true
   property var logoPos: ({ offsetX: 0, offsetY: -44 })
   property var logoSize: ({ width: 800, height: 188 })
+  property bool sizesCustomized: false
   property var previewRes: ({ width: 1920, height: 1080 })
   property var detectedRes: ({ width: 0, height: 0 })
   property string themeDir: "/usr/share/sddm/themes/omarchy"
@@ -94,6 +95,7 @@ Item {
     if (typeof args.showLogo === "boolean") showLogo = args.showLogo
     if (args.logoPos && typeof args.logoPos === "object") logoPos = { offsetX: parseInt(args.logoPos.offsetX)||0, offsetY: parseInt(args.logoPos.offsetY)||0 }
     if (args.logoSize && typeof args.logoSize === "object") logoSize = { width: Math.max(80,Math.min(1200,args.logoSize.width||800)), height: Math.max(20,Math.min(400,args.logoSize.height||188)) }
+    sizesCustomized = args.sizesCustomized === true
     if (args.previewRes && typeof args.previewRes === "object") previewRes = { width: parseInt(args.previewRes.width)||1920, height: parseInt(args.previewRes.height)||1080 }
     if (args.detectedRes && typeof args.detectedRes === "object") detectedRes = { width: parseInt(args.detectedRes.width)||0, height: parseInt(args.detectedRes.height)||0 }
     if (typeof args.themeDir === "string" && args.themeDir) themeDir = String(args.themeDir)
@@ -131,6 +133,7 @@ Item {
         if (typeof cfg.showLogo === "boolean") root.showLogo = cfg.showLogo
         if (cfg.logoPos && typeof cfg.logoPos === "object") root.logoPos = { offsetX: parseInt(cfg.logoPos.offsetX)||0, offsetY: parseInt(cfg.logoPos.offsetY)||0 }
         if (cfg.logoSize && typeof cfg.logoSize === "object") root.logoSize = { width: Math.max(80,Math.min(1200,cfg.logoSize.width||800)), height: Math.max(20,Math.min(400,cfg.logoSize.height||188)) }
+        root.sizesCustomized = cfg.sizesCustomized === true
         if (cfg.previewRes && typeof cfg.previewRes === "object") {
           root.previewRes = { width: parseInt(cfg.previewRes.width)||1920, height: parseInt(cfg.previewRes.height)||1080 }
         }
@@ -206,7 +209,7 @@ Item {
 
   function applySelected() {
     if (!selectedPath) return
-    var payload = JSON.stringify({ video: selectedPath, poster: previewPoster, audioEnabled: audioEnabled, pos: pos, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay })
+    var payload = JSON.stringify({ video: selectedPath, poster: previewPoster, audioEnabled: audioEnabled, pos: pos, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay })
     Quickshell.execDetached(["bash", "-c", "omarchy-shell -q live-boot applySettings " + Util.shellQuote(payload) + " >/dev/null 2>&1 &"])
     close()
   }
@@ -216,10 +219,11 @@ Item {
   }
   function updateFieldSize(w, h) {
     fieldSize = { width: Math.max(200, Math.min(1600, w)), height: Math.max(40, Math.min(320, h)) }
+    sizesCustomized = true
   }
   function updateShowLogo(v) { showLogo = !!v }
   function updateLogoPos(ox, oy) { logoPos = { offsetX: ox, offsetY: oy } }
-  function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) } }
+  function updateLogoSize(w, h) { logoSize = { width: Math.max(80, Math.min(1200, w)), height: Math.max(20, Math.min(400, h)) }; sizesCustomized = true }
   function logoWidthFor(screenWidth) { return Math.round(Math.min(800, screenWidth * 0.8)) }
   function logoHeightFor(screenWidth) { return Math.round(logoWidthFor(screenWidth) * 188 / 800) }
   function defaultLogoWidth() { return logoWidthFor(previewRes.width) }
@@ -232,6 +236,7 @@ Item {
   function resetDefaultSizes() {
     updateLogoSize(defaultLogoWidth(), defaultLogoHeight())
     updateFieldSize(335, 48)
+    sizesCustomized = false
   }
 
   Timer { id: previewPasswordTimer; interval: root.passwordDelay; onTriggered: root.previewPasswordRevealed = true }
@@ -243,11 +248,8 @@ Item {
     var h = detectedRes.height > 0 ? detectedRes.height : Math.round(win.Screen.height)
     if (w < 1 || h < 1) return
 
-    var usedDefaults = Math.abs(logoSize.width - logoWidthFor(previewRes.width)) < 1
-        && Math.abs(logoSize.height - logoHeightFor(previewRes.width)) < 1
-        && fieldSize.width === 335 && fieldSize.height === 48
     previewRes = { width: w, height: h }
-    if (usedDefaults) resetDefaultSizes()
+    if (!sizesCustomized) resetDefaultSizes()
   }
 
   // position helpers for preview

@@ -22,6 +22,7 @@ Item {
   property var logoSize: ({ width: 800, height: 188 })
   property var previewRes: ({ width: 1920, height: 1080 })
   property var fieldSize: ({ width: 335, height: 48 })
+  property bool sizesCustomized: false
   property string revealMode: "first-frame"
   property int transitionDuration: 700
   property int passwordDelay: 250
@@ -45,13 +46,14 @@ Item {
       if (cfg.passwordDelay !== undefined) passwordDelay = Math.max(0, Math.min(3000, parseInt(cfg.passwordDelay)||0))
       if (cfg.fieldSize && typeof cfg.fieldSize === "object") fieldSize = { width: Math.max(200, Math.min(1600, parseInt(cfg.fieldSize.width)||335)), height: Math.max(40, Math.min(320, parseInt(cfg.fieldSize.height)||48)) }
       else if (cfg.size && typeof cfg.size === "object") fieldSize = { width: Math.max(200, Math.min(1600, parseInt(cfg.size.width)||335)), height: Math.max(40, Math.min(320, parseInt(cfg.size.height)||48)) }
+      sizesCustomized = cfg.sizesCustomized === true
     } catch (e) {
       console.warn("live-boot config parse failed", e)
     }
   }
 
   function saveConfig() {
-    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay }
+    var payload = { video: videoPath, poster: posterPath, pos: pos, audioEnabled: audioEnabled, fieldSize: fieldSize, showLogo: showLogo, logoPos: logoPos, logoSize: logoSize, sizesCustomized: sizesCustomized, previewRes: previewRes, revealMode: revealMode, transitionDuration: transitionDuration, passwordDelay: passwordDelay }
     configFile.setText(JSON.stringify(payload, null, 2) + "\n")
   }
 
@@ -128,6 +130,7 @@ Item {
       root.showLogo = cfg.showLogo === true
       root.logoPos = { offsetX: parseInt(cfg.logoPos.offsetX,10)||0, offsetY: parseInt(cfg.logoPos.offsetY,10)||0 }
       root.logoSize = { width: Math.max(80, Math.min(1200, parseInt(cfg.logoSize.width,10)||800)), height: Math.max(20, Math.min(400, parseInt(cfg.logoSize.height,10)||188)) }
+      root.sizesCustomized = cfg.sizesCustomized === true
       root.previewRes = { width: Math.max(640, Math.min(7680, parseInt(cfg.previewRes.width,10)||1920)), height: Math.max(480, Math.min(4320, parseInt(cfg.previewRes.height,10)||1080)) }
       root.revealMode = cfg.revealMode === "video-end" ? "video-end" : "first-frame"
       root.transitionDuration = Math.max(100, Math.min(3000, parseInt(cfg.transitionDuration,10)||700))
@@ -200,7 +203,7 @@ Item {
       root.syncSddm()
     }
     function status(): string {
-      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled, fieldSize: root.fieldSize, showLogo: root.showLogo, logoPos: root.logoPos, logoSize: root.logoSize, previewRes: root.previewRes, revealMode: root.revealMode, transitionDuration: root.transitionDuration, passwordDelay: root.passwordDelay })
+      return JSON.stringify({ video: root.videoPath, poster: root.posterPath, pos: root.pos, audioEnabled: root.audioEnabled, fieldSize: root.fieldSize, showLogo: root.showLogo, logoPos: root.logoPos, logoSize: root.logoSize, sizesCustomized: root.sizesCustomized, previewRes: root.previewRes, revealMode: root.revealMode, transitionDuration: root.transitionDuration, passwordDelay: root.passwordDelay })
     }
     function stop(): void {
       root.videoPath = ""
