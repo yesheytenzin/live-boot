@@ -280,8 +280,8 @@ Item {
     // main card - responsive
     Rectangle {
       id: card
-      width: Math.min(parent.width - 40, 1100)
-      height: Math.min(parent.height - 40, 820)
+      width: Math.min(parent.width - 40, 990)
+      height: Math.min(parent.height - 40, 738)
       anchors.centerIn: parent
       radius: Style.cornerRadius
       color: Color.background
@@ -298,7 +298,7 @@ Item {
 
         // Left: grid
         ColumnLayout {
-          Layout.preferredWidth: 360
+          Layout.preferredWidth: 300
           Layout.fillHeight: true
           spacing: Style.spacing.rowGap
 
@@ -353,8 +353,8 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            cellWidth: 170
-            cellHeight: 110
+            cellWidth: 145
+            cellHeight: 96
             model: {
               var out = []
               var f = String(root.filterText || "").toLowerCase()
@@ -461,7 +461,7 @@ Item {
           Item {
             id: previewFrame
             Layout.fillWidth: true
-            Layout.preferredHeight: 230
+            Layout.preferredHeight: 190
 
             Rectangle {
               id: preview
@@ -738,14 +738,22 @@ Item {
           }
           }
 
-          // --- transition: same state machine as SDDM ---
-          ColumnLayout {
+          // Transition controls mirror the SDDM state machine.
+          Rectangle {
             Layout.fillWidth: true
-            spacing: 5
+            Layout.preferredHeight: 64
+            radius: 9
+            color: Util.alpha(Color.background, 0.32)
+            border.color: Util.alpha(Color.imagePicker.unselectedBorder, 0.7)
+            border.width: 1
+            ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 7
+            spacing: 4
             RowLayout {
               Layout.fillWidth: true
               spacing: 6
-              Text { text: "Reveal"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.65 }
+              Text { text: "TRANSITION"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
               Repeater {
                 model: [{label:"Immediate", mode:"first-frame"}, {label:"After video", mode:"video-end"}]
                 delegate: Rectangle {
@@ -802,338 +810,163 @@ Item {
               Item { Layout.fillWidth: true }
               Text { text: root.revealMode === "video-end" ? "Click preview or Skip to reveal" : "Reveal on first frame"; color: Color.foreground; opacity: 0.4; font.pixelSize: 9 }
             }
-          }
-
-          // --- display: logo + scale/resolution ---
-          ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            // logo toggle - mirrors SDDM showLogo
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: 8
-              Text { text: "Omarchy logo"; color: Color.foreground; font.pixelSize: Style.font.bodySmall; opacity: 0.8 }
-              Item { Layout.fillWidth: true }
-              Text {
-                text: root.showLogo ? "Shown · " + root.logoPos.offsetX + "," + root.logoPos.offsetY : "Hidden"
-                color: Color.foreground; opacity: root.showLogo ? 0.9 : 0.45
-                font.pixelSize: Style.font.caption
-              }
-              Rectangle {
-                width: 60; height: 24; radius: 6
-                color: Util.alpha(Color.background,0.6); border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                Text { anchors.centerIn: parent; text: "Default"; color: Color.foreground; font.pixelSize: Style.font.caption }
-                MouseArea { anchors.fill: parent; onClicked: root.updateLogoPos(0,-44) }
-              }
-              Rectangle {
-                width: 52; height: 26; radius: 13
-                color: root.showLogo ? Color.accent : Util.alpha(Color.background,0.6)
-                border.color: Color.imagePicker.unselectedBorder
-                border.width: 1
-                Rectangle {
-                  width: 18; height: 18; radius: 9
-                  color: Color.background
-                  border.color: Color.imagePicker.unselectedBorder
-                  border.width: 1
-                  anchors.verticalCenter: parent.verticalCenter
-                  x: root.showLogo ? parent.width - width - 4 : 4
-                  Behavior on x { NumberAnimation{duration:150}}
-                }
-                MouseArea { anchors.fill: parent; onClicked: root.updateShowLogo(!root.showLogo) }
-              }
-            }
-
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: 6
-              Text { text: "Logo size"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
-              Item { Layout.fillWidth: true }
-              Text { text: "W"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.55 }
-              Rectangle {
-                width: 86; height: 24; radius: 6
-                color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                RowLayout { anchors.fill: parent; spacing: 0
-                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width-20, root.logoSize.height) } }
-                  Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(Math.round(root.logoSize.width)); color: Color.foreground; font.pixelSize: 10 }
-                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width+20, root.logoSize.height) } }
-                }
-              }
-              Text { text: "H"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.55 }
-              Rectangle {
-                width: 78; height: 24; radius: 6
-                color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                RowLayout { anchors.fill: parent; spacing: 0
-                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width, root.logoSize.height-5) } }
-                  Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(Math.round(root.logoSize.height)); color: Color.foreground; font.pixelSize: 10 }
-                  Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width, root.logoSize.height+5) } }
-                }
-              }
-              Text { text: "corner ⤡"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
-            }
-
-            // The preview follows the monitor hosting this picker.
-            ColumnLayout {
-              Layout.fillWidth: true
-              spacing: 4
-              RowLayout {
-                Layout.fillWidth: true
-                Text { text: "Detected screen"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
-                Item { Layout.fillWidth: true }
-                Rectangle {
-                  width: 108; height: 24; radius: 6
-                  color: Util.alpha(Color.background,0.55)
-                  border.color: Color.imagePicker.unselectedBorder
-                  border.width: 1
-                  Text { anchors.centerIn: parent; text: "Use default sizes"; color: Color.foreground; font.pixelSize: Style.font.caption }
-                  MouseArea { anchors.fill: parent; onClicked: root.resetDefaultSizes() }
-                }
-                Text { text: root.previewRes.width + "×" + root.previewRes.height + " · preview " + Math.round(preview.displayScale*100) + "%"; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
-              }
-              Text {
-                text: "Omarchy defaults for this screen: logo " + root.defaultLogoWidth() + "×" + root.defaultLogoHeight() + " · password 335×48. Both remain editable."
-                color: Color.foreground; opacity: 0.42; font.pixelSize: 9; wrapMode: Text.WordWrap; Layout.fillWidth: true
-              }
             }
           }
 
-          // --- improved positioning ---
-          ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 6
-
-            RowLayout {
-              Layout.fillWidth: true
-              Text { text: "Password position"; color: Color.foreground; font.pixelSize: Style.font.bodySmall; font.weight: Font.DemiBold; opacity: 0.9 }
-              Item { Layout.fillWidth: true }
-              Text { text: root.pos.anchor==="custom" ? "Custom  " + root.pos.offsetX + "," + root.pos.offsetY : root.pos.anchor; color: Color.foreground; opacity: 0.5; font.pixelSize: Style.font.caption }
-              Rectangle {
-                width: 60; height: 24; radius: 7
-                color: Util.alpha(Color.background,0.5); border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                Text { anchors.centerIn: parent; text: "Default"; color: Color.foreground; font.pixelSize: Style.font.caption }
-                MouseArea { anchors.fill: parent; onClicked: root.updatePos("custom",0,root.defaultPasswordY()) }
-              }
-            }
-
-            // visual anchor picker + live mini preview
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: 10
-
-              // 3x3 picker with live indicator
-              Rectangle {
-                width: 108; height: 108; radius: Style.cornerRadius
-                color: Util.alpha(Color.background,0.4)
-                border.color: Color.imagePicker.unselectedBorder
-                border.width: 1
-                clip: true
-
-                GridLayout {
-                  anchors.fill: parent
-                  anchors.margins: 6
-                  columns: 3; rows: 3
-                  columnSpacing: 4; rowSpacing: 4
-                  Repeater {
-                    model: [
-                      {a:"topLeft", x:0, y:0}, {a:"top", x:1, y:0}, {a:"topRight", x:2, y:0},
-                      {a:"centerLeft", x:0, y:1}, {a:"center", x:1, y:1}, {a:"centerRight", x:2, y:1},
-                      {a:"bottomLeft", x:0, y:2}, {a:"bottom", x:1, y:2}, {a:"bottomRight", x:2, y:2}
-                    ]
-                    delegate: Rectangle {
-                      required property var modelData
-                      Layout.fillWidth: true; Layout.fillHeight: true
-                      radius: 6
-                      color: root.pos.anchor===modelData.a ? Color.accent : Util.alpha(Color.background,0.65)
-                      border.color: root.pos.anchor===modelData.a ? Color.accent : Util.alpha(Color.foreground,0.15)
-                      border.width: 1
-                      // dot for anchor
-                      Rectangle {
-                        width: 6; height: 6; radius: 3
-                        color: root.pos.anchor===modelData.a ? Color.background : Util.alpha(Color.foreground,0.45)
-                        anchors.centerIn: parent
-                      }
-                      // hover crosshair
-                      Rectangle {
-                        anchors.fill: parent; radius: 6
-                        color: "transparent"
-                        border.color: Util.alpha(Color.accent,0.0)
-                      }
-                      MouseArea { anchors.fill: parent; hoverEnabled: true; onEntered: parent.border.color = Util.alpha(Color.accent,0.5); onExited: parent.border.color = Util.alpha(Color.foreground,0.15); onClicked: root.updatePos(modelData.a,0,0) }
-                    }
-                  }
-                }
-                // center highlight ring
-                Rectangle {
-                  width: 36; height: 36; radius: 8
-                  color: "transparent"
-                  border.color: Util.alpha(Color.accent,0.9)
-                  border.width: root.pos.anchor==="center" ? 1.5 : 0
-                  anchors.centerIn: parent
-                }
-              }
-
-              ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                Text { text: "Snap to a corner, or drag freely:"; color: Color.foreground; opacity: 0.55; font.pixelSize: Style.font.caption; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-
-                Rectangle {
-                  Layout.fillWidth: true; height: 32; radius: Style.cornerRadius
-                  color: root.pos.anchor==="custom" ? Color.accent : Util.alpha(Color.background,0.55)
-                  border.color: root.pos.anchor==="custom" ? Color.accent : Color.imagePicker.unselectedBorder
-                  border.width: 1
-                  RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 10; anchors.rightMargin: 10
-                    spacing: 8
-                    Text { text: root.pos.anchor==="custom" ? "●  Drag enabled" : "○  Drag"; color: root.pos.anchor==="custom" ? Color.background : Color.foreground; font.pixelSize: Style.font.bodySmall; font.weight: Font.DemiBold }
-                    Item { Layout.fillWidth: true }
-                    Text { text: root.pos.anchor==="custom" ? "drag box in preview" : "enable drag"; color: root.pos.anchor==="custom" ? Util.alpha(Color.background,0.8) : Util.alpha(Color.foreground,0.6); font.pixelSize: Style.font.caption }
-                  }
-                  MouseArea { anchors.fill: parent; onClicked: root.updatePos("custom", root.pos.offsetX, root.pos.offsetY) }
-                }
-
-                Text { text: "Tip: drag the box, drag corner ⤡ to resize."; color: Color.foreground; opacity: 0.42; font.pixelSize: 10; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-              }
-            }
-
-            // click-to-place + nudge + offsets
-            Rectangle {
-              Layout.fillWidth: true; height: 36; radius: Style.cornerRadius
-              color: Util.alpha(Color.background,0.35)
-              border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.6)
-              border.width: 1
-              RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8; anchors.rightMargin: 8
-                spacing: 6
-                Text { text: "↔ X"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
-                Rectangle {
-                  Layout.preferredWidth: 72; Layout.fillHeight: false; height: 24; radius: 6
-                  color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                  RowLayout { anchors.fill: parent; spacing: 0
-                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX-5, root.pos.offsetY) } }
-                    TextInput { id: ox2; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(root.pos.offsetX); color: Color.foreground; font.pixelSize: Style.font.bodySmall; onAccepted: root.updatePos(root.pos.anchor, parseInt(text)||0, root.pos.offsetY) }
-                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX+5, root.pos.offsetY) } }
-                  }
-                }
-                Text { text: "↕ Y"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
-                Rectangle {
-                  Layout.preferredWidth: 72; Layout.fillHeight: false; height: 24; radius: 6
-                  color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                  RowLayout { anchors.fill: parent; spacing: 0
-                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY-5) } }
-                    TextInput { id: oy2; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(root.pos.offsetY); color: Color.foreground; font.pixelSize: Style.font.bodySmall; onAccepted: root.updatePos(root.pos.anchor, root.pos.offsetX, parseInt(text)||0) }
-                    Rectangle { width: 20; height: 24; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY+5) } }
-                  }
-                }
-                Item { Layout.fillWidth: true }
-                Rectangle {
-                  width: 32; height: 24; radius: 6
-                  color: Util.alpha(Color.background,0.6); border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                  Text { anchors.centerIn: parent; text: "⟲"; color: Color.foreground; font.pixelSize: 12 }
-                  MouseArea { anchors.fill: parent; onClicked: root.updatePos(root.pos.anchor,0,0) }
-                }
-              }
-              // arrow nudge
-              Keys.onPressed: function(e){
-                if(e.key===Qt.Key_Left){ root.updatePos(root.pos.anchor, root.pos.offsetX-1, root.pos.offsetY); e.accepted=true }
-                else if(e.key===Qt.Key_Right){ root.updatePos(root.pos.anchor, root.pos.offsetX+1, root.pos.offsetY); e.accepted=true }
-                else if(e.key===Qt.Key_Up){ root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY-1); e.accepted=true }
-                else if(e.key===Qt.Key_Down){ root.updatePos(root.pos.anchor, root.pos.offsetX, root.pos.offsetY+1); e.accepted=true }
-              }
-              focus: true
-            }
-
-            Text { text: "Drag the box · corner ⤡ to resize"; color: Util.alpha(Color.accent,0.85); font.pixelSize: 10; visible: root.pos.anchor==="custom"; opacity: 0.9 }
-
-            // size controls
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: 8
-              Text { text: "Size"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
-              Rectangle {
-                Layout.fillWidth: true; height: 28; radius: 6
-                color: Util.alpha(Color.background,0.35); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.6); border.width: 1
-                RowLayout {
-                  anchors.fill: parent
-                  anchors.leftMargin: 6; anchors.rightMargin: 6
-                  spacing: 4
-                  Text { text: "W"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
-                  Rectangle {
-                    Layout.preferredWidth: 72; height: 22; radius: 4
-                    color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                    RowLayout { anchors.fill: parent; spacing: 0
-                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width-50, fieldSize.height) } }
-                      Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(fieldSize.width); color: Color.foreground; font.pixelSize: 11 }
-                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width+50, fieldSize.height) } }
-                    }
-                  }
-                  Text { text: "H"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.6 }
-                  Rectangle {
-                    Layout.preferredWidth: 64; height: 22; radius: 4
-                    color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
-                    RowLayout { anchors.fill: parent; spacing: 0
-                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width, fieldSize.height-10) } }
-                      Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: String(fieldSize.height); color: Color.foreground; font.pixelSize: 11 }
-                      Rectangle { width: 18; height: 22; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground; font.pixelSize: 10 } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(fieldSize.width, fieldSize.height+10) } }
-                    }
-                  }
-                  Item { Layout.fillWidth: true }
-                  Text { text: "drag corner to resize"; color: Util.alpha(Color.foreground,0.45); font.pixelSize: 9; visible: true }
-                }
-              }
-            }
-          }
-
-          // audio toggle
+          // Compact, paired control cards keep related settings together.
           RowLayout {
             Layout.fillWidth: true
+            Layout.preferredHeight: 184
             spacing: 8
-            Text { text: "Boot sound"; color: Color.foreground; font.pixelSize: Style.font.bodySmall; opacity: 0.7 }
-            Item { Layout.fillWidth: true }
-            Text {
-              text: root.previewHasAudio ? (root.audioEnabled ? "On" : "Off") : "No audio track"
-              color: root.previewHasAudio ? Color.foreground : Color.foreground
-              opacity: root.previewHasAudio ? 0.9 : 0.4
-              font.pixelSize: Style.font.caption
-            }
+
             Rectangle {
-              width: 52; height: 26; radius: 13
-              color: root.audioEnabled && root.previewHasAudio ? Color.accent : Util.alpha(Color.background,0.6)
-              border.color: Color.imagePicker.unselectedBorder
-              border.width: 1
-              opacity: root.previewHasAudio ? 1 : 0.45
-              Rectangle {
-                width: 18; height: 18; radius: 9
-                color: Color.background
-                border.color: Color.imagePicker.unselectedBorder
-                border.width: 1
-                anchors.verticalCenter: parent.verticalCenter
-                x: root.audioEnabled ? parent.width - width - 4 : 4
-                Behavior on x { NumberAnimation{duration:150}}
-              }
-              MouseArea {
-                anchors.fill: parent
-                enabled: root.previewHasAudio
-                onClicked: root.audioEnabled = !root.audioEnabled
+              Layout.fillWidth: true; Layout.fillHeight: true; radius: 9
+              color: Util.alpha(Color.background,0.32); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.7); border.width: 1
+              ColumnLayout {
+                anchors.fill: parent; anchors.margins: 10; spacing: 7
+                RowLayout {
+                  Layout.fillWidth: true
+                  Text { text: "LOGO"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
+                  Item { Layout.fillWidth: true }
+                  Text { text: root.showLogo ? "VISIBLE" : "HIDDEN"; color: Color.foreground; font.pixelSize: 9; opacity: 0.45 }
+                  Rectangle {
+                    Layout.preferredWidth: 42; Layout.preferredHeight: 22; radius: 11
+                    color: root.showLogo ? Color.accent : Util.alpha(Color.background,0.65); border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                    Rectangle { width: 14; height: 14; radius: 7; color: Color.background; anchors.verticalCenter: parent.verticalCenter; x: root.showLogo ? parent.width-width-4 : 4; Behavior on x { NumberAnimation { duration: 140 } } }
+                    MouseArea { anchors.fill: parent; onClicked: root.updateShowLogo(!root.showLogo) }
+                  }
+                }
+                RowLayout {
+                  Layout.fillWidth: true
+                  Text { text: root.previewRes.width + "×" + root.previewRes.height; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.55 }
+                  Item { Layout.fillWidth: true }
+                  Rectangle {
+                    Layout.preferredWidth: 82; Layout.preferredHeight: 24; radius: 6
+                    color: Util.alpha(Color.background,0.55); border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                    Text { anchors.centerIn: parent; text: "All defaults"; color: Color.foreground; font.pixelSize: Style.font.caption }
+                    MouseArea { anchors.fill: parent; onClicked: { root.resetDefaultSizes(); root.updateLogoPos(0,-44) } }
+                  }
+                }
+                Text { text: "SIZE"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
+                RowLayout {
+                  Layout.fillWidth: true; spacing: 6
+                  Text { text: "W"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+                  Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 25; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                    RowLayout { anchors.fill: parent; spacing: 0
+                      Rectangle { Layout.preferredWidth: 22; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width-20,root.logoSize.height) } }
+                      Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: Math.round(root.logoSize.width); color: Color.foreground; font.pixelSize: 10 }
+                      Rectangle { Layout.preferredWidth: 22; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width+20,root.logoSize.height) } }
+                    }
+                  }
+                  Text { text: "H"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+                  Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 25; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                    RowLayout { anchors.fill: parent; spacing: 0
+                      Rectangle { Layout.preferredWidth: 22; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width,root.logoSize.height-5) } }
+                      Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: Math.round(root.logoSize.height); color: Color.foreground; font.pixelSize: 10 }
+                      Rectangle { Layout.preferredWidth: 22; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateLogoSize(root.logoSize.width,root.logoSize.height+5) } }
+                    }
+                  }
+                }
+                RowLayout {
+                  Layout.fillWidth: true
+                  Text { text: "POSITION"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
+                  Item { Layout.fillWidth: true }
+                  Text { text: root.logoPos.offsetX + ", " + root.logoPos.offsetY; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+                  Rectangle { Layout.preferredWidth: 48; Layout.preferredHeight: 22; radius: 6; color: Util.alpha(Color.background,0.55); border.color: Color.imagePicker.unselectedBorder; border.width: 1; Text { anchors.centerIn: parent; text: "Reset"; color: Color.foreground; font.pixelSize: 9 } MouseArea { anchors.fill: parent; onClicked: root.updateLogoPos(0,-44) } }
+                }
               }
             }
-            Text {
-              text: "🔊"
-              color: Color.foreground
-              opacity: root.audioEnabled && root.previewHasAudio ? 0.9 : 0.3
-              font.pixelSize: Style.font.body
+
+            Rectangle {
+              Layout.fillWidth: true; Layout.fillHeight: true; radius: 9
+              color: Util.alpha(Color.background,0.32); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.7); border.width: 1
+              RowLayout {
+                anchors.fill: parent; anchors.margins: 10; spacing: 9
+                ColumnLayout {
+                  Layout.fillWidth: true; Layout.fillHeight: true; spacing: 7
+                  RowLayout {
+                    Layout.fillWidth: true
+                    Text { text: "PASSWORD"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
+                    Item { Layout.fillWidth: true }
+                    Text { text: root.pos.anchor === "custom" ? "FREE" : root.pos.anchor.toUpperCase(); color: Color.foreground; font.pixelSize: 9; opacity: 0.45 }
+                  }
+                  Text { text: "SIZE"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
+                  RowLayout {
+                    Layout.fillWidth: true; spacing: 5
+                    Text { text: "W"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+                    Rectangle {
+                      Layout.fillWidth: true; Layout.preferredHeight: 25; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                      RowLayout { anchors.fill: parent; spacing: 0
+                        Rectangle { Layout.preferredWidth: 20; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(root.fieldSize.width-50,root.fieldSize.height) } }
+                        Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: root.fieldSize.width; color: Color.foreground; font.pixelSize: 10 }
+                        Rectangle { Layout.preferredWidth: 20; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(root.fieldSize.width+50,root.fieldSize.height) } }
+                      }
+                    }
+                    Text { text: "H"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+                    Rectangle {
+                      Layout.fillWidth: true; Layout.preferredHeight: 25; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                      RowLayout { anchors.fill: parent; spacing: 0
+                        Rectangle { Layout.preferredWidth: 20; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "−"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(root.fieldSize.width,root.fieldSize.height-10) } }
+                        Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: root.fieldSize.height; color: Color.foreground; font.pixelSize: 10 }
+                        Rectangle { Layout.preferredWidth: 20; Layout.fillHeight: true; color: "transparent"; Text { anchors.centerIn: parent; text: "+"; color: Color.foreground } MouseArea { anchors.fill: parent; onClicked: root.updateFieldSize(root.fieldSize.width,root.fieldSize.height+10) } }
+                      }
+                    }
+                  }
+                  Text { text: "OFFSET"; color: Color.foreground; font.pixelSize: 9; opacity: 0.4 }
+                  RowLayout {
+                    Layout.fillWidth: true; spacing: 5
+                    Text { text: "X"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 25; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1; TextInput { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; horizontalAlignment: Text.AlignHCenter; text: String(root.pos.offsetX); color: Color.foreground; font.pixelSize: 10; onAccepted: root.updatePos(root.pos.anchor,parseInt(text)||0,root.pos.offsetY) } }
+                    Text { text: "Y"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 25; radius: 6; color: Color.background; border.color: Color.imagePicker.unselectedBorder; border.width: 1; TextInput { anchors.fill: parent; verticalAlignment: Text.AlignVCenter; horizontalAlignment: Text.AlignHCenter; text: String(root.pos.offsetY); color: Color.foreground; font.pixelSize: 10; onAccepted: root.updatePos(root.pos.anchor,root.pos.offsetX,parseInt(text)||0) } }
+                  }
+                  Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 25; radius: 6
+                    color: root.pos.anchor === "custom" ? Color.accent : Util.alpha(Color.background,0.55); border.color: root.pos.anchor === "custom" ? Color.accent : Color.imagePicker.unselectedBorder; border.width: 1
+                    Text { anchors.centerIn: parent; text: root.pos.anchor === "custom" ? "Drag enabled" : "Enable free drag"; color: root.pos.anchor === "custom" ? Color.background : Color.foreground; font.pixelSize: 10; font.weight: Font.DemiBold }
+                    MouseArea { anchors.fill: parent; onClicked: root.updatePos("custom",root.pos.offsetX,root.pos.offsetY) }
+                  }
+                }
+                Rectangle {
+                  Layout.preferredWidth: 74; Layout.preferredHeight: 126; radius: 8
+                  color: Util.alpha(Color.background,0.45); border.color: Color.imagePicker.unselectedBorder; border.width: 1
+                  GridLayout {
+                    anchors.fill: parent; anchors.margins: 5; columns: 3; rows: 3; columnSpacing: 3; rowSpacing: 3
+                    Repeater {
+                      model: ["topLeft","top","topRight","centerLeft","center","centerRight","bottomLeft","bottom","bottomRight"]
+                      delegate: Rectangle {
+                        required property string modelData
+                        Layout.fillWidth: true; Layout.fillHeight: true; radius: 4
+                        color: root.pos.anchor === modelData ? Color.accent : Util.alpha(Color.background,0.65)
+                        border.color: root.pos.anchor === modelData ? Color.accent : Util.alpha(Color.foreground,0.12); border.width: 1
+                        Rectangle { anchors.centerIn: parent; width: 4; height: 4; radius: 2; color: root.pos.anchor === modelData ? Color.background : Util.alpha(Color.foreground,0.5) }
+                        MouseArea { anchors.fill: parent; onClicked: root.updatePos(modelData,0,0) }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
-          Text {
-            visible: !root.previewHasAudio && root.previewVideo !== ""
-            text: "This video has no audio track — sound will stay silent at boot even if enabled."
-            color: Color.foreground
-            opacity: 0.5
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.WordWrap
-            Layout.fillWidth: true
+
+          Rectangle {
+            Layout.fillWidth: true; Layout.preferredHeight: 38; radius: 9
+            color: Util.alpha(Color.background,0.32); border.color: Util.alpha(Color.imagePicker.unselectedBorder,0.7); border.width: 1
+            RowLayout {
+              anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 8; spacing: 8
+              Text { text: "AUDIO"; color: Color.foreground; font.pixelSize: 9; font.weight: Font.DemiBold; opacity: 0.5 }
+              Text { text: root.previewHasAudio ? "Video audio is available" : "No audio track in this video"; color: Color.foreground; font.pixelSize: Style.font.caption; opacity: 0.45 }
+              Item { Layout.fillWidth: true }
+              Text { text: root.previewHasAudio ? (root.audioEnabled ? "ON" : "OFF") : "UNAVAILABLE"; color: Color.foreground; font.pixelSize: 9; opacity: 0.5 }
+              Rectangle {
+                Layout.preferredWidth: 42; Layout.preferredHeight: 22; radius: 11
+                color: root.audioEnabled && root.previewHasAudio ? Color.accent : Util.alpha(Color.background,0.65); border.color: Color.imagePicker.unselectedBorder; border.width: 1; opacity: root.previewHasAudio ? 1 : 0.4
+                Rectangle { width: 14; height: 14; radius: 7; color: Color.background; anchors.verticalCenter: parent.verticalCenter; x: root.audioEnabled ? parent.width-width-4 : 4; Behavior on x { NumberAnimation { duration: 140 } } }
+                MouseArea { anchors.fill: parent; enabled: root.previewHasAudio; onClicked: root.audioEnabled = !root.audioEnabled }
+              }
+            }
           }
         }
       }
